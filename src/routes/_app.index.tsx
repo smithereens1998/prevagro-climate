@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
   Droplets,
@@ -13,6 +13,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -23,6 +24,20 @@ import {
 import { KpiCard, PageHeader, SectionCard } from "@/components/ui-bits";
 import { SatelliteMap } from "@/components/SatelliteMap";
 import { Button } from "@/components/ui/button";
+import { FARM_METRICS } from "@/lib/geo/farm-data";
+import {
+  aiRecommendations,
+  chartTooltip,
+  CROP_FOCUS,
+  cropProductivityTrend,
+  FARM_HECTARES,
+  FARM_NAME,
+  FARM_MUNICIPIO,
+  FARM_SAFRA,
+  monthlyClimate,
+  monthlyNdvi,
+  RISK_SCORE,
+} from "@/lib/farm-insights";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -34,37 +49,22 @@ export const Route = createFileRoute("/_app/")({
   component: Overview,
 });
 
-const climaData = Array.from({ length: 12 }).map((_, i) => ({
-  m: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i],
-  temp: 20 + Math.sin(i / 2) * 6 + Math.random() * 2,
-  chuva: 60 + Math.cos(i / 2) * 50 + Math.random() * 20,
-}));
-const ndviData = Array.from({ length: 12 }).map((_, i) => ({
-  m: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i],
-  ndvi: 0.4 + Math.sin(i / 2.4) * 0.25 + 0.1,
-}));
-const prodData = Array.from({ length: 6 }).map((_, i) => ({
-  s: `Safra ${i + 1}`,
-  v: 50 + i * 5 + Math.random() * 8,
-}));
-
-const chartTooltip = {
-  contentStyle: {
-    background: "oklch(0.244 0.026 240)",
-    border: "1px solid oklch(1 0 0 / 0.08)",
-    borderRadius: 12,
-    color: "#fff",
-    fontSize: 12,
-  },
-  cursor: { stroke: "#6BE234", strokeOpacity: 0.3 },
-};
+const recIcons = {
+  primary: Droplets,
+  warning: Beaker,
+  danger: CloudRain,
+} as const;
 
 function Overview() {
+  const m = FARM_METRICS;
+  const cafe = CROP_FOCUS[0];
+  const soja = CROP_FOCUS[1];
+
   return (
     <>
       <PageHeader
         title="Visão Geral"
-        description="Monitore o clima, solo e cultivos com inteligência artificial."
+        description={`${FARM_NAME} · ${FARM_MUNICIPIO} — café e soja na safra ${FARM_SAFRA}.`}
         action={
           <Button className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
             <Sparkles className="h-4 w-4" /> Gerar análise IA
@@ -72,14 +72,15 @@ function Overview() {
         }
       />
 
-      {/* Hero map */}
       <SectionCard
-        title="Mapa de Risco — Fazenda São João"
-        subtitle="Heatmap em tempo real · atualizado há 4 min"
+        title={`Mapa de Risco — ${FARM_NAME}`}
+        subtitle={`Heatmap no perímetro · ${FARM_HECTARES} ha · Patrocínio/MG`}
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="sm">Exportar</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">Abrir mapa</Button>
+            <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Link to="/mapa">Abrir mapa</Link>
+            </Button>
           </div>
         }
         className="mb-6"
@@ -88,9 +89,9 @@ function Overview() {
           <SatelliteMap className="h-[360px]" />
           <div className="flex flex-col gap-3">
             {[
-              { label: "Área total", v: "1.248", u: "ha" },
-              { label: "Área analisada", v: "1.106", u: "ha (88%)" },
-              { label: "Cultura principal", v: "Soja", u: "Safra 24/25" },
+              { label: "Área total", v: String(FARM_HECTARES), u: "ha" },
+              { label: "Café", v: String(cafe.areaHa), u: `ha (${cafe.sharePct}%)` },
+              { label: "Soja", v: String(soja.areaHa), u: `ha (${soja.sharePct}%) · ${FARM_SAFRA}` },
             ].map((s) => (
               <div key={s.label} className="rounded-xl border border-border bg-surface/60 p-4">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -103,20 +104,45 @@ function Overview() {
         </div>
       </SectionCard>
 
-      {/* KPIs */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Risco Climático" value="34" unit="/100" delta={-12} icon={AlertTriangle} tone="warning" />
-        <KpiCard label="Índice de Vegetação (NDVI)" value="0.72" delta={5} icon={Sprout} tone="primary" />
-        <KpiCard label="Umidade do Solo" value="62" unit="%" delta={3} icon={Droplets} tone="primary" />
-        <KpiCard label="Produtividade Estimada" value="78,4" unit="sc/ha" delta={8} icon={TrendingUp} tone="primary" />
+        <KpiCard
+          label="Risco Climático"
+          value={String(RISK_SCORE)}
+          unit="/100"
+          delta={-4}
+          icon={AlertTriangle}
+          tone="warning"
+        />
+        <KpiCard
+          label="Índice de Vegetação (NDVI)"
+          value={m.ndvi.toFixed(2)}
+          delta={5}
+          icon={Sprout}
+          tone="primary"
+        />
+        <KpiCard
+          label="Umidade do Solo"
+          value={String(m.umidade)}
+          unit="%"
+          delta={3}
+          icon={Droplets}
+          tone="primary"
+        />
+        <KpiCard
+          label="Produtividade Estimada"
+          value={m.produtividade.toFixed(1).replace(".", ",")}
+          unit="sc/ha"
+          delta={8}
+          icon={TrendingUp}
+          tone="primary"
+        />
       </div>
 
-      {/* Charts */}
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <SectionCard title="Histórico Climático" subtitle="Temperatura e chuva — 12 meses">
           <div className="h-56">
             <ResponsiveContainer>
-              <AreaChart data={climaData}>
+              <AreaChart data={monthlyClimate}>
                 <defs>
                   <linearGradient id="t1" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#F4B400" stopOpacity={0.5} />
@@ -131,76 +157,52 @@ function Overview() {
                 <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip {...chartTooltip} />
-                <Area type="monotone" dataKey="chuva" stroke="#6BE234" fill="url(#r1)" strokeWidth={2} />
-                <Area type="monotone" dataKey="temp" stroke="#F4B400" fill="url(#t1)" strokeWidth={2} />
+                <Area type="monotone" dataKey="chuva" stroke="#6BE234" fill="url(#r1)" strokeWidth={2} name="Chuva (mm)" />
+                <Area type="monotone" dataKey="temp" stroke="#F4B400" fill="url(#t1)" strokeWidth={2} name="Temp (°C)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </SectionCard>
 
-        <SectionCard title="Evolução do NDVI" subtitle="Índice de vegetação por mês">
+        <SectionCard title="Evolução do NDVI" subtitle="Índice de vegetação no perímetro">
           <div className="h-56">
             <ResponsiveContainer>
-              <LineChart data={ndviData}>
+              <LineChart data={monthlyNdvi}>
                 <CartesianGrid stroke="#ffffff10" vertical={false} />
                 <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} domain={[0, 1]} />
                 <Tooltip {...chartTooltip} />
-                <Line type="monotone" dataKey="ndvi" stroke="#6BE234" strokeWidth={2.5} dot={{ fill: "#6BE234", r: 3 }} />
+                <Line type="monotone" dataKey="ndvi" stroke="#6BE234" strokeWidth={2.5} dot={{ fill: "#6BE234", r: 3 }} name="NDVI" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </SectionCard>
 
-        <SectionCard title="Tendência de Produtividade" subtitle="Sacas / hectare por safra">
+        <SectionCard title="Produtividade por Cultura" subtitle="Café e soja — últimas safras">
           <div className="h-56">
             <ResponsiveContainer>
-              <AreaChart data={prodData}>
-                <defs>
-                  <linearGradient id="p1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3FAE2A" stopOpacity={0.6} />
-                    <stop offset="100%" stopColor="#3FAE2A" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <LineChart data={cropProductivityTrend}>
                 <CartesianGrid stroke="#ffffff10" vertical={false} />
                 <XAxis dataKey="s" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip {...chartTooltip} />
-                <Area type="monotone" dataKey="v" stroke="#3FAE2A" fill="url(#p1)" strokeWidth={2} />
-              </AreaChart>
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line type="monotone" dataKey="cafe" stroke="#8B4513" strokeWidth={2} dot={{ r: 3 }} name="Café (sc/ha)" />
+                <Line type="monotone" dataKey="soja" stroke="#6BE234" strokeWidth={2} dot={{ r: 3 }} name="Soja (sc/ha)" />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </SectionCard>
       </div>
 
-      {/* AI Recommendations */}
       <SectionCard
         title="Recomendações da IA"
-        subtitle="Sugestões geradas a partir dos seus dados nas últimas 24h"
-        action={<span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">3 novas</span>}
+        subtitle="Foco em café e soja — dados das últimas 24h"
+        action={<span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">{aiRecommendations.length} ativas</span>}
       >
         <div className="grid gap-3 md:grid-cols-3">
-          {[
-            {
-              icon: Droplets,
-              title: "Aumentar irrigação",
-              desc: "Talhão 04 com umidade 12% abaixo do ideal. Recomendado +18 mm em 48h.",
-              tone: "primary" as const,
-            },
-            {
-              icon: Beaker,
-              title: "Aplicar potássio",
-              desc: "Análise de solo indica deficiência de K em 23% da área leste.",
-              tone: "warning" as const,
-            },
-            {
-              icon: CloudRain,
-              title: "Monitorar seca",
-              desc: "Modelo prevê 14 dias sem chuva. Antecipar plano de contingência.",
-              tone: "danger" as const,
-            },
-          ].map((r) => {
-            const Icon = r.icon;
+          {aiRecommendations.map((r) => {
+            const Icon = recIcons[r.tone];
             const tone =
               r.tone === "primary"
                 ? "text-primary bg-primary/10"

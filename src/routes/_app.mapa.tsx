@@ -1,50 +1,173 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader } from "@/components/ui-bits";
-import { SatelliteMap } from "@/components/SatelliteMap";
+import { GeoMap } from "@/components/GeoMap";
 import { Button } from "@/components/ui/button";
-import { Box, Download, Layers } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Box, Download, Layers, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FARM_METRICS, FARM_PERIMETER, type Risco } from "@/lib/geo/farm-data";
+import {
+  LAYER_IDS,
+  LAYER_META,
+  type BasemapId,
+  type VizMode,
+} from "@/lib/geo/map-layers";
 
 export const Route = createFileRoute("/_app/mapa")({
   head: () => ({ meta: [{ title: "Mapa · Prevagro" }] }),
   component: MapaPage,
 });
 
-const LAYERS = ["Vegetação", "Temperatura", "Umidade", "Solo", "Risco Climático", "Produtividade"];
+const VIZ_MODES: { id: VizMode; label: string; hint: string }[] = [
+  { id: "auto", label: "Automático", hint: "Melhor tipo por camada" },
+  { id: "heatmap", label: "Calor", hint: "Heatmap na área" },
+  { id: "geometry", label: "Geometria", hint: "Polígono colorido" },
+  { id: "columns", label: "Colunas 3D", hint: "Barra no centro" },
+];
+
+const BASEMAPS: { id: BasemapId; label: string }[] = [
+  { id: "satellite", label: "Satélite" },
+  { id: "terrain", label: "Relevo" },
+  { id: "dark", label: "Escuro" },
+];
+
+const riscoTone: Record<Risco, string> = {
+  Baixo: "text-primary",
+  Médio: "text-warning",
+  Alto: "text-destructive",
+};
 
 function MapaPage() {
   const [active, setActive] = useState<string[]>(["Vegetação", "Risco Climático"]);
+  const [basemap, setBasemap] = useState<BasemapId>("satellite");
+  const [vizMode, setVizMode] = useState<VizMode>("auto");
+  const [layerOpacity, setLayerOpacity] = useState(0.85);
+  const [is3D, setIs3D] = useState(false);
+
   const toggle = (l: string) =>
     setActive((a) => (a.includes(l) ? a.filter((x) => x !== l) : [...a, l]));
+
+  const farm = FARM_PERIMETER.properties;
+  const m = FARM_METRICS;
+  const metrics = [
+    { k: "Área", v: `${farm.hectares} ha` },
+    { k: "Risco", v: m.risco, tone: riscoTone[m.risco] },
+    { k: "NDVI", v: m.ndvi.toFixed(2) },
+    { k: "Produtividade", v: `${m.produtividade} sc/ha`, tone: "text-primary" },
+    { k: "Temperatura", v: `${m.temp.toFixed(1)} °C` },
+    { k: "Umidade", v: `${m.umidade} %` },
+  ];
 
   return (
     <>
       <PageHeader
         title="Mapa Geoespacial"
-        description="Visualização estilo Google Earth com camadas de heatmap."
+        description="Análise do perímetro da fazenda — calor, geometria e visão 3D."
         action={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm"><Box className="h-4 w-4" /> 3D View</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90"><Download className="h-4 w-4" /> Exportar</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-pressed={is3D}
+              onClick={() => setIs3D((v) => !v)}
+              className={cn(is3D && "border-primary/40 bg-primary/10 text-foreground")}
+            >
+              <Box className="h-4 w-4" /> {is3D ? "Visão 2D" : "Visão 3D"}
+            </Button>
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Download className="h-4 w-4" /> Exportar
+            </Button>
           </div>
         }
       />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <SatelliteMap className="h-[calc(100vh-220px)] min-h-[480px]" />
+        <GeoMap
+          className="h-[calc(100vh-220px)] min-h-[480px]"
+          activeLayers={active}
+          basemap={basemap}
+          vizMode={vizMode}
+          layerOpacity={layerOpacity}
+          is3D={is3D}
+          onToggle3D={() => setIs3D((v) => !v)}
+        />
 
         <div className="flex flex-col gap-4">
           <section className="glass-card rounded-2xl p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Layers className="h-4 w-4 text-primary" /> Camadas
+              <MapIcon className="h-4 w-4 text-primary" /> Basemap
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {BASEMAPS.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  aria-pressed={basemap === b.id}
+                  onClick={() => setBasemap(b.id)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
+                    basemap === b.id
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="glass-card rounded-2xl p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Layers className="h-4 w-4 text-primary" /> Visualização
+            </div>
+            <div className="mb-4 grid grid-cols-2 gap-1.5">
+              {VIZ_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  title={mode.hint}
+                  aria-pressed={vizMode === mode.id}
+                  onClick={() => setVizMode(mode.id)}
+                  className={cn(
+                    "rounded-lg border px-2 py-2 text-left text-xs transition-colors",
+                    vizMode === mode.id
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span className="font-medium">{mode.label}</span>
+                  <span className="mt-0.5 block text-[10px] opacity-70">{mode.hint}</span>
+                </button>
+              ))}
+            </div>
+
+            <label className="mb-1 block text-xs text-muted-foreground">
+              Opacidade das camadas · {Math.round(layerOpacity * 100)}%
+            </label>
+            <Slider
+              value={[layerOpacity * 100]}
+              min={20}
+              max={100}
+              step={5}
+              onValueChange={([v]) => setLayerOpacity(v / 100)}
+              aria-label="Opacidade das camadas de dados"
+            />
+          </section>
+
+          <section className="glass-card rounded-2xl p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Layers className="h-4 w-4 text-primary" /> Camadas de dados
             </div>
             <div className="space-y-1.5">
-              {LAYERS.map((l) => {
+              {LAYER_IDS.map((l) => {
                 const on = active.includes(l);
+                const viz = LAYER_META[l].defaultViz;
                 return (
                   <button
                     key={l}
+                    type="button"
                     onClick={() => toggle(l)}
                     className={cn(
                       "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
@@ -53,13 +176,11 @@ function MapaPage() {
                         : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {l}
-                    <span
-                      className={cn(
-                        "h-1.5 w-8 rounded-full",
-                        on ? "bg-primary" : "bg-muted",
-                      )}
-                    />
+                    <span>
+                      {l}
+                      <span className="ml-2 text-[10px] uppercase tracking-wide opacity-60">{viz}</span>
+                    </span>
+                    <span className={cn("h-1.5 w-8 rounded-full", on ? "bg-primary" : "bg-muted")} />
                   </button>
                 );
               })}
@@ -67,29 +188,18 @@ function MapaPage() {
           </section>
 
           <section className="glass-card rounded-2xl p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Área selecionada</p>
-            <h3 className="mt-1 text-lg font-semibold text-foreground">Talhão 04 — Sul</h3>
-            <p className="text-xs text-muted-foreground">Soja · Safra 24/25</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Perímetro analisado</p>
+            <h3 className="mt-1 text-lg font-semibold text-foreground">{farm.nome}</h3>
+            <p className="text-xs text-muted-foreground">
+              {farm.municipio} · {farm.cultura} · Safra {farm.safra}
+            </p>
+            <p className="mt-1 text-[10px] text-muted-foreground/80">{farm.fonte}</p>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              {[
-                { k: "Hectares", v: "142 ha" },
-                { k: "Risco", v: "Médio", tone: "warning" },
-                { k: "NDVI", v: "0.68" },
-                { k: "Produtividade", v: "82 sc/ha", tone: "primary" },
-              ].map((m) => (
-                <div key={m.k} className="rounded-lg border border-border bg-surface/60 p-3">
-                  <dt className="text-xs text-muted-foreground">{m.k}</dt>
-                  <dd
-                    className={cn(
-                      "mt-1 text-base font-semibold",
-                      m.tone === "warning" && "text-warning",
-                      m.tone === "primary" && "text-primary",
-                      !m.tone && "text-foreground",
-                    )}
-                  >
-                    {m.v}
-                  </dd>
+              {metrics.map((item) => (
+                <div key={item.k} className="rounded-lg border border-border bg-surface/60 p-3">
+                  <dt className="text-xs text-muted-foreground">{item.k}</dt>
+                  <dd className={cn("mt-1 text-base font-semibold", item.tone ?? "text-foreground")}>{item.v}</dd>
                 </div>
               ))}
             </dl>
