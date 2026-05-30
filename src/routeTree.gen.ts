@@ -9,61 +9,247 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppSoloRouteImport } from './routes/_app.solo'
+import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
+import { Route as AppMapaRouteImport } from './routes/_app.mapa'
+import { Route as AppCulturasRouteImport } from './routes/_app.culturas'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppClimaRouteImport } from './routes/_app.clima'
+import { Route as AppAnalisesRouteImport } from './routes/_app.analises'
+import { Route as AppAlertasRouteImport } from './routes/_app.alertas'
 
-const IndexRoute = IndexRouteImport.update({
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSoloRoute = AppSoloRouteImport.update({
+  id: '/solo',
+  path: '/solo',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMapaRoute = AppMapaRouteImport.update({
+  id: '/mapa',
+  path: '/mapa',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCulturasRoute = AppCulturasRouteImport.update({
+  id: '/culturas',
+  path: '/culturas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClimaRoute = AppClimaRouteImport.update({
+  id: '/clima',
+  path: '/clima',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalisesRoute = AppAnalisesRouteImport.update({
+  id: '/analises',
+  path: '/analises',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAlertasRoute = AppAlertasRouteImport.update({
+  id: '/alertas',
+  path: '/alertas',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
+  '/alertas': typeof AppAlertasRoute
+  '/analises': typeof AppAnalisesRoute
+  '/clima': typeof AppClimaRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
+  '/culturas': typeof AppCulturasRoute
+  '/mapa': typeof AppMapaRoute
+  '/relatorios': typeof AppRelatoriosRoute
+  '/solo': typeof AppSoloRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/alertas': typeof AppAlertasRoute
+  '/analises': typeof AppAnalisesRoute
+  '/clima': typeof AppClimaRoute
+  '/configuracoes': typeof AppConfiguracoesRoute
+  '/culturas': typeof AppCulturasRoute
+  '/mapa': typeof AppMapaRoute
+  '/relatorios': typeof AppRelatoriosRoute
+  '/solo': typeof AppSoloRoute
+  '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/alertas': typeof AppAlertasRoute
+  '/_app/analises': typeof AppAnalisesRoute
+  '/_app/clima': typeof AppClimaRoute
+  '/_app/configuracoes': typeof AppConfiguracoesRoute
+  '/_app/culturas': typeof AppCulturasRoute
+  '/_app/mapa': typeof AppMapaRoute
+  '/_app/relatorios': typeof AppRelatoriosRoute
+  '/_app/solo': typeof AppSoloRoute
+  '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/alertas'
+    | '/analises'
+    | '/clima'
+    | '/configuracoes'
+    | '/culturas'
+    | '/mapa'
+    | '/relatorios'
+    | '/solo'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/alertas'
+    | '/analises'
+    | '/clima'
+    | '/configuracoes'
+    | '/culturas'
+    | '/mapa'
+    | '/relatorios'
+    | '/solo'
+    | '/'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_app/alertas'
+    | '/_app/analises'
+    | '/_app/clima'
+    | '/_app/configuracoes'
+    | '/_app/culturas'
+    | '/_app/mapa'
+    | '/_app/relatorios'
+    | '/_app/solo'
+    | '/_app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/solo': {
+      id: '/_app/solo'
+      path: '/solo'
+      fullPath: '/solo'
+      preLoaderRoute: typeof AppSoloRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/relatorios': {
+      id: '/_app/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AppRelatoriosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mapa': {
+      id: '/_app/mapa'
+      path: '/mapa'
+      fullPath: '/mapa'
+      preLoaderRoute: typeof AppMapaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/culturas': {
+      id: '/_app/culturas'
+      path: '/culturas'
+      fullPath: '/culturas'
+      preLoaderRoute: typeof AppCulturasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clima': {
+      id: '/_app/clima'
+      path: '/clima'
+      fullPath: '/clima'
+      preLoaderRoute: typeof AppClimaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analises': {
+      id: '/_app/analises'
+      path: '/analises'
+      fullPath: '/analises'
+      preLoaderRoute: typeof AppAnalisesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/alertas': {
+      id: '/_app/alertas'
+      path: '/alertas'
+      fullPath: '/alertas'
+      preLoaderRoute: typeof AppAlertasRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
+interface AppRouteChildren {
+  AppAlertasRoute: typeof AppAlertasRoute
+  AppAnalisesRoute: typeof AppAnalisesRoute
+  AppClimaRoute: typeof AppClimaRoute
+  AppConfiguracoesRoute: typeof AppConfiguracoesRoute
+  AppCulturasRoute: typeof AppCulturasRoute
+  AppMapaRoute: typeof AppMapaRoute
+  AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppSoloRoute: typeof AppSoloRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAlertasRoute: AppAlertasRoute,
+  AppAnalisesRoute: AppAnalisesRoute,
+  AppClimaRoute: AppClimaRoute,
+  AppConfiguracoesRoute: AppConfiguracoesRoute,
+  AppCulturasRoute: AppCulturasRoute,
+  AppMapaRoute: AppMapaRoute,
+  AppRelatoriosRoute: AppRelatoriosRoute,
+  AppSoloRoute: AppSoloRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
