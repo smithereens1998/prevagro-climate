@@ -8,13 +8,13 @@ import {
 
 describe("map-layers", () => {
   it("expõe todas as camadas da UI", () => {
-    expect(LAYER_IDS).toHaveLength(6);
+    expect(LAYER_IDS).toHaveLength(5);
   });
 
   it("resolve modo automático conforme default de cada camada", () => {
     expect(resolveVizKind("Vegetação", "auto")).toBe("geometry");
     expect(resolveVizKind("Temperatura", "auto")).toBe("heatmap");
-    expect(resolveVizKind("Produtividade", "auto")).toBe("columns");
+    expect(resolveVizKind("Solo", "auto")).toBe("geometry");
   });
 
   it("força heatmap em todas as camadas no modo calor", () => {

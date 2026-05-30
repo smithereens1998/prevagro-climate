@@ -10,8 +10,7 @@ export type FarmMetricKey =
   | "temp"
   | "umidade"
   | "soloScore"
-  | "riscoScore"
-  | "produtividade";
+  | "riscoScore";
 
 export type FarmMetrics = {
   ndvi: number;
@@ -19,8 +18,6 @@ export type FarmMetrics = {
   umidade: number;
   soloScore: number;
   riscoScore: number;
-  /** Índice 0–100 para camada de produtividade no mapa (não é sc/ha). */
-  produtividade: number;
   risco: Risco;
 };
 
@@ -31,8 +28,6 @@ export type FarmCrop = {
   name: string;
   areaHa: number;
   ndvi: number;
-  produtividade: number;
-  prodUnit: string;
   stage: string;
   status: CropStatus;
 };
@@ -42,7 +37,6 @@ export const FARM_KPI_DELTAS = {
   risco: -4,
   ndvi: 5,
   umidade: 3,
-  produtividade: 8,
   temp: -1,
   solo: 2,
 } as const;
@@ -82,7 +76,6 @@ export const FARM_METRICS: FarmMetrics = {
   umidade: 61,
   soloScore: 0.72,
   riscoScore: 0.46,
-  produtividade: 79,
   risco: "Médio",
 };
 
@@ -93,8 +86,6 @@ export const FARM_CROPS: FarmCrop[] = [
     name: "Café",
     areaHa: 520,
     ndvi: 0.68,
-    produtividade: 42,
-    prodUnit: "sc/ha",
     stage: "Grãos formados",
     status: "ok",
   },
@@ -103,8 +94,6 @@ export const FARM_CROPS: FarmCrop[] = [
     name: "Soja",
     areaHa: 262,
     ndvi: 0.58,
-    produtividade: 68,
-    prodUnit: "sc/ha",
     stage: "Enchimento",
     status: "warn",
   },
@@ -115,13 +104,13 @@ export const getRiskScore = () => Math.round(FARM_METRICS.riscoScore * 100);
 export const getCropSharePct = (areaHa: number) =>
   Math.round((areaHa / FARM_PERIMETER.properties.hectares) * 100);
 
-/** Produtividade média ponderada (sc/ha) café + soja. */
-export const getWeightedProductivity = () =>
+/** NDVI médio ponderado pela área de cada cultura. */
+export const getWeightedNdvi = () =>
   Number(
     (
-      FARM_CROPS.reduce((acc, c) => acc + c.produtividade * c.areaHa, 0) /
+      FARM_CROPS.reduce((acc, c) => acc + c.ndvi * c.areaHa, 0) /
       FARM_PERIMETER.properties.hectares
-    ).toFixed(1),
+    ).toFixed(2),
   );
 
 export const getRiskBreakdown = () => ({
@@ -217,7 +206,6 @@ function mulberry32(seed: number) {
 const metricWeight = (metric: FarmMetricKey, value: number) => {
   if (metric === "temp") return (value - 24) / 12;
   if (metric === "umidade") return value / 100;
-  if (metric === "produtividade") return (value - 55) / 45;
   return value;
 };
 

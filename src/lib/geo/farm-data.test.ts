@@ -65,10 +65,10 @@ describe("mock derivado", () => {
     expect(total).toBe(FARM_PERIMETER.properties.hectares);
   });
 
-  it("getWeightedProductivity reflete café e soja", async () => {
-    const { getWeightedProductivity } = await import("./farm-data");
-    expect(getWeightedProductivity()).toBeGreaterThan(40);
-    expect(getWeightedProductivity()).toBeLessThan(75);
+  it("getWeightedNdvi reflete café e soja", async () => {
+    const { getWeightedNdvi } = await import("./farm-data");
+    expect(getWeightedNdvi()).toBeGreaterThan(0.5);
+    expect(getWeightedNdvi()).toBeLessThanOrEqual(1);
   });
 });
 

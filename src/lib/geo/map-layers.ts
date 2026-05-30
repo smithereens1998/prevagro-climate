@@ -4,7 +4,6 @@ import {
 } from "./farm-data";
 import {
   ndviColor,
-  prodColor,
   riscoColor,
   RISK_RANGE,
   soloColor,
@@ -23,7 +22,6 @@ export const LAYER_IDS = [
   "Umidade",
   "Solo",
   "Risco Climático",
-  "Produtividade",
 ] as const;
 
 export type LayerId = (typeof LAYER_IDS)[number];
@@ -122,19 +120,6 @@ export const LAYER_META: Record<LayerId, LayerMeta> = {
       stops: [RISK_RANGE[0], RISK_RANGE[3], RISK_RANGE[5]],
     },
     geometryColor: () => riscoColor(FARM_METRICS.riscoScore),
-  },
-  Produtividade: {
-    defaultViz: "columns",
-    heatMetric: "produtividade",
-    legend: {
-      title: "Produtividade",
-      minLabel: "55 sc/ha",
-      maxLabel: "100 sc/ha",
-      stops: [[132, 204, 120], [74, 180, 100], [22, 163, 74]],
-      unit: "sc/ha",
-    },
-    geometryColor: () => prodColor(FARM_METRICS.produtividade),
-    columnValue: () => FARM_METRICS.produtividade,
   },
 };
 

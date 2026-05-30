@@ -7,7 +7,7 @@ import {
   getCropSharePct,
   getRiskBreakdown,
   getRiskScore,
-  getWeightedProductivity,
+  getWeightedNdvi,
   type FarmCrop,
 } from "@/lib/geo/farm-data";
 
@@ -16,7 +16,7 @@ export const FARM_MUNICIPIO = FARM_PERIMETER.properties.municipio;
 export const FARM_HECTARES = FARM_PERIMETER.properties.hectares;
 export const FARM_SAFRA = FARM_PERIMETER.properties.safra;
 export const RISK_SCORE = getRiskScore();
-export const WEIGHTED_PRODUCTIVITY = getWeightedProductivity();
+export const WEIGHTED_NDVI = getWeightedNdvi();
 
 export type CropFocus = FarmCrop & { sharePct: number };
 
@@ -56,22 +56,6 @@ export const monthlyNdvi = MONTHS.map((m, i) => ({
   ndvi: Number((FARM_METRICS.ndvi - 0.12 + Math.sin((i - 2) / 2.4) * 0.18).toFixed(2)),
 }));
 
-const cafeProd = FARM_CROPS[0].produtividade;
-const sojaProd = FARM_CROPS[1].produtividade;
-
-/** Produtividade por cultura (últimas safras). */
-export const cropProductivityTrend = [
-  { s: "21/22", cafe: cafeProd - 4, soja: sojaProd - 10 },
-  { s: "22/23", cafe: cafeProd - 2, soja: sojaProd - 6 },
-  { s: "23/24", cafe: cafeProd - 1, soja: sojaProd - 3 },
-  { s: "24/25", cafe: cafeProd, soja: sojaProd },
-];
-
-export const suitabilityCrops = [
-  { name: "Café", score: Math.round(88 + FARM_CROPS[0].ndvi * 12) },
-  { name: "Soja", score: Math.round(78 + FARM_CROPS[1].ndvi * 14) },
-];
-
 const risk = getRiskBreakdown();
 const soja = FARM_CROPS[1];
 
@@ -95,17 +79,11 @@ export const aiRecommendations = [
 
 export const strategicInsight = {
   summary: `Com base nos últimos ${FARM_SNAPSHOT.windowDays} dias, a ${FARM_NAME} apresenta risco climático ${FARM_METRICS.risco.toLowerCase()} (${RISK_SCORE}/100), umidade ${FARM_METRICS.umidade}%, NDVI ${FARM_METRICS.ndvi.toFixed(2)} e solo ${Math.round(FARM_METRICS.soloScore * 100)}/100 no perímetro de ${FARM_HECTARES} ha.`,
-  action: `Priorize irrigação na soja (${soja.areaHa} ha), manejo fitossanitário (${risk.fitossanitario.toLowerCase()}) e monitoramento hídrico do café (${FARM_CROPS[0].areaHa} ha). Projeção: +${FARM_KPI_DELTAS.produtividade} a +${FARM_KPI_DELTAS.produtividade + 1} sc/ha com intervenções.`,
+  action: `Priorize irrigação na soja (${soja.areaHa} ha), manejo fitossanitário (${risk.fitossanitario.toLowerCase()}) e monitoramento hídrico do café (${FARM_CROPS[0].areaHa} ha) na próxima janela operacional.`,
   tags: ["Irrigação soja", "Manejo ferrugem", "Monitorar seca", "Adubação café"],
 };
 
-export type OverviewKpiId =
-  | "risco"
-  | "ndvi"
-  | "umidade"
-  | "produtividade"
-  | "temp"
-  | "solo";
+export type OverviewKpiId = "risco" | "ndvi" | "umidade" | "temp" | "solo";
 
 export type OverviewKpi = {
   id: OverviewKpiId;
@@ -142,14 +120,6 @@ export const getOverviewKpis = (): OverviewKpi[] => [
     tone: "primary",
   },
   {
-    id: "produtividade",
-    label: "Produtividade Média",
-    value: WEIGHTED_PRODUCTIVITY.toFixed(1).replace(".", ","),
-    unit: "sc/ha",
-    delta: FARM_KPI_DELTAS.produtividade,
-    tone: "primary",
-  },
-  {
     id: "temp",
     label: "Temperatura Média",
     value: FARM_METRICS.temp.toFixed(1).replace(".", ","),
@@ -167,4 +137,4 @@ export const getOverviewKpis = (): OverviewKpi[] => [
   },
 ];
 
-export { FARM_KPI_DELTAS, FARM_SNAPSHOT, getRiskBreakdown, getWeightedProductivity };
+export { FARM_KPI_DELTAS, FARM_SNAPSHOT, getRiskBreakdown, getWeightedNdvi };

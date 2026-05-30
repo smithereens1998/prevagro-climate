@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Box, Download, Layers, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FARM_METRICS, FARM_PERIMETER, type Risco } from "@/lib/geo/farm-data";
+import { FARM_METRICS, FARM_PERIMETER, getRiskScore, type Risco } from "@/lib/geo/farm-data";
 import {
   DEFAULT_ACTIVE_LAYERS,
   LAYER_IDS,
@@ -53,11 +53,11 @@ function MapaPage() {
   const m = FARM_METRICS;
   const metrics = [
     { k: "Área", v: `${farm.hectares} ha` },
-    { k: "Risco", v: m.risco, tone: riscoTone[m.risco] },
+    { k: "Risco", v: `${m.risco} (${getRiskScore()}/100)`, tone: riscoTone[m.risco] },
     { k: "NDVI", v: m.ndvi.toFixed(2) },
-    { k: "Produtividade", v: `${m.produtividade} sc/ha`, tone: "text-primary" },
     { k: "Temperatura", v: `${m.temp.toFixed(1)} °C` },
     { k: "Umidade", v: `${m.umidade} %` },
+    { k: "Solo", v: `${Math.round(m.soloScore * 100)}/100` },
   ];
 
   return (
@@ -76,25 +76,47 @@ function MapaPage() {
             >
               <Box className="h-4 w-4" /> {is3D ? "Visão 2D" : "Visão 3D"}
             </Button>
-            <Button size="sm">
+            <Button size="sm" variant="outline">
               <Download className="h-4 w-4" /> Exportar
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <GeoMap
-          className="h-[calc(100vh-220px)] min-h-[480px]"
-          activeLayers={active}
-          basemap={basemap}
-          vizMode={vizMode}
-          layerOpacity={layerOpacity}
-          is3D={is3D}
-          onToggle3D={() => setIs3D((v) => !v)}
-        />
+      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <GeoMap
+            className="h-[calc(100vh-320px)] min-h-[420px]"
+            activeLayers={active}
+            basemap={basemap}
+            vizMode={vizMode}
+            layerOpacity={layerOpacity}
+            is3D={is3D}
+            onToggle3D={() => setIs3D((v) => !v)}
+          />
 
-        <div className="flex flex-col gap-4">
+          <section className="panel rounded-lg p-4">
+            <p className="text-xs text-muted-foreground">Perímetro analisado</p>
+            <h3 className="mt-1 text-lg font-semibold text-foreground">{farm.nome}</h3>
+            <p className="text-xs text-muted-foreground">
+              {farm.municipio} · {farm.cultura} · Safra {farm.safra}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{farm.fonte}</p>
+
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+              {metrics.map((item) => (
+                <div key={item.k} className="rounded-lg border border-border bg-surface p-3">
+                  <dt className="text-xs text-muted-foreground">{item.k}</dt>
+                  <dd className={cn("mt-1 text-base font-semibold", item.tone ?? "text-foreground")}>
+                    {item.v}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+
+        <aside className="flex flex-col gap-4">
           <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <MapIcon className="h-4 w-4 text-primary" /> Basemap
@@ -110,7 +132,7 @@ function MapaPage() {
                     "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                     basemap === b.id
                       ? "border-primary/40 bg-primary/10 text-foreground"
-                      : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {b.label}
@@ -135,7 +157,7 @@ function MapaPage() {
                     "rounded-lg border px-2 py-2 text-left text-xs transition-colors",
                     vizMode === mode.id
                       ? "border-primary/40 bg-primary/10 text-foreground"
-                      : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <span className="font-medium">{mode.label}</span>
@@ -174,12 +196,12 @@ function MapaPage() {
                       "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
                       on
                         ? "border-primary/40 bg-primary/10 text-foreground"
-                        : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                        : "border-border bg-surface text-muted-foreground hover:text-foreground",
                     )}
                   >
                     <span>
                       {l}
-                      <span className="ml-2 text-[10px] uppercase tracking-wide opacity-60">{viz}</span>
+                      <span className="ml-2 text-[10px] opacity-60">{viz}</span>
                     </span>
                     <span className={cn("h-1.5 w-8 rounded-full", on ? "bg-primary" : "bg-muted")} />
                   </button>
@@ -187,29 +209,7 @@ function MapaPage() {
               })}
             </div>
           </section>
-
-          <section className="panel rounded-lg p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Perímetro analisado</p>
-            <h3 className="mt-1 text-lg font-semibold text-foreground">{farm.nome}</h3>
-            <p className="text-xs text-muted-foreground">
-              {farm.municipio} · {farm.cultura} · Safra {farm.safra}
-            </p>
-            <p className="mt-1 text-[10px] text-muted-foreground/80">{farm.fonte}</p>
-
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              {metrics.map((item) => (
-                <div key={item.k} className="rounded-lg border border-border bg-surface/60 p-3">
-                  <dt className="text-xs text-muted-foreground">{item.k}</dt>
-                  <dd className={cn("mt-1 text-base font-semibold", item.tone ?? "text-foreground")}>{item.v}</dd>
-                </div>
-              ))}
-            </dl>
-
-            <Button className="mt-4 w-full">
-              Ver análise completa
-            </Button>
-          </section>
-        </div>
+        </aside>
       </div>
     </>
   );

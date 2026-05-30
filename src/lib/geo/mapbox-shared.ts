@@ -156,19 +156,27 @@ export const bindFarmPerimeterPopup = (map: any, mapboxgl: any) => {
 
   const props = FARM_PERIMETER.properties;
   const html = `
-    <div style="font:12px/1.45 system-ui,sans-serif;min-width:200px">
-      <strong style="font-size:13px">${props.nome}</strong>
-      <div style="opacity:.75;margin-top:4px">${props.municipio}</div>
-      <hr style="border:none;border-top:1px solid #ffffff22;margin:8px 0"/>
-      <div>Área: <b>${props.hectares} ha</b></div>
-      <div>Risco: <b>${FARM_METRICS.risco}</b> (${getRiskScore()}/100)</div>
-      <div>NDVI: <b>${FARM_METRICS.ndvi.toFixed(2)}</b></div>
-      <div>Temp: <b>${FARM_METRICS.temp.toFixed(1)} °C</b> · Umidade: <b>${FARM_METRICS.umidade}%</b></div>
+    <div class="prevagro-popup-body">
+      <p class="prevagro-popup-title">${props.nome}</p>
+      <p class="prevagro-popup-sub">${props.municipio}</p>
+      <hr class="prevagro-popup-divider" />
+      <dl class="prevagro-popup-metrics">
+        <div><dt>Área</dt><dd>${props.hectares} ha</dd></div>
+        <div><dt>Risco</dt><dd>${FARM_METRICS.risco} (${getRiskScore()}/100)</dd></div>
+        <div><dt>NDVI</dt><dd>${FARM_METRICS.ndvi.toFixed(2)}</dd></div>
+        <div><dt>Clima</dt><dd>${FARM_METRICS.temp.toFixed(1)} °C · ${FARM_METRICS.umidade}% umid.</dd></div>
+      </dl>
     </div>
   `;
 
   map.on("click", PERIMETER_FILL, (e: { lngLat: { lng: number; lat: number } }) => {
-    new mapboxgl.Popup({ closeButton: true, maxWidth: "280px" })
+    new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      maxWidth: "300px",
+      className: "prevagro-map-popup",
+      offset: 12,
+    })
       .setLngLat(e.lngLat)
       .setHTML(html)
       .addTo(map);

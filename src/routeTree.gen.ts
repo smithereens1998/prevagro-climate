@@ -17,7 +17,6 @@ import { Route as AppMapaRouteImport } from './routes/_app.mapa'
 import { Route as AppCulturasRouteImport } from './routes/_app.culturas'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppClimaRouteImport } from './routes/_app.clima'
-import { Route as AppAnalisesRouteImport } from './routes/_app.analises'
 import { Route as AppAlertasRouteImport } from './routes/_app.alertas'
 
 const AppRoute = AppRouteImport.update({
@@ -59,11 +58,6 @@ const AppClimaRoute = AppClimaRouteImport.update({
   path: '/clima',
   getParentRoute: () => AppRoute,
 } as any)
-const AppAnalisesRoute = AppAnalisesRouteImport.update({
-  id: '/analises',
-  path: '/analises',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppAlertasRoute = AppAlertasRouteImport.update({
   id: '/alertas',
   path: '/alertas',
@@ -73,7 +67,6 @@ const AppAlertasRoute = AppAlertasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/alertas': typeof AppAlertasRoute
-  '/analises': typeof AppAnalisesRoute
   '/clima': typeof AppClimaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/culturas': typeof AppCulturasRoute
@@ -83,7 +76,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/alertas': typeof AppAlertasRoute
-  '/analises': typeof AppAnalisesRoute
   '/clima': typeof AppClimaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/culturas': typeof AppCulturasRoute
@@ -96,7 +88,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/alertas': typeof AppAlertasRoute
-  '/_app/analises': typeof AppAnalisesRoute
   '/_app/clima': typeof AppClimaRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/culturas': typeof AppCulturasRoute
@@ -110,7 +101,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/alertas'
-    | '/analises'
     | '/clima'
     | '/configuracoes'
     | '/culturas'
@@ -120,7 +110,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/alertas'
-    | '/analises'
     | '/clima'
     | '/configuracoes'
     | '/culturas'
@@ -132,7 +121,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_app/alertas'
-    | '/_app/analises'
     | '/_app/clima'
     | '/_app/configuracoes'
     | '/_app/culturas'
@@ -204,13 +192,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClimaRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/analises': {
-      id: '/_app/analises'
-      path: '/analises'
-      fullPath: '/analises'
-      preLoaderRoute: typeof AppAnalisesRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/alertas': {
       id: '/_app/alertas'
       path: '/alertas'
@@ -223,7 +204,6 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAlertasRoute: typeof AppAlertasRoute
-  AppAnalisesRoute: typeof AppAnalisesRoute
   AppClimaRoute: typeof AppClimaRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCulturasRoute: typeof AppCulturasRoute
@@ -235,7 +215,6 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAlertasRoute: AppAlertasRoute,
-  AppAnalisesRoute: AppAnalisesRoute,
   AppClimaRoute: AppClimaRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCulturasRoute: AppCulturasRoute,

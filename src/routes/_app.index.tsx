@@ -3,7 +3,6 @@ import {
   Activity,
   Droplets,
   Sprout,
-  TrendingUp,
   AlertTriangle,
   Beaker,
   CloudRain,
@@ -15,7 +14,6 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -31,7 +29,6 @@ import {
   aiRecommendations,
   chartTooltip,
   CROP_FOCUS,
-  cropProductivityTrend,
   FARM_HECTARES,
   FARM_NAME,
   FARM_MUNICIPIO,
@@ -64,7 +61,6 @@ const kpiIcons: Record<OverviewKpiId, typeof Sprout> = {
   risco: AlertTriangle,
   ndvi: Sprout,
   umidade: Droplets,
-  produtividade: TrendingUp,
   temp: Thermometer,
   solo: Mountain,
 };
@@ -73,7 +69,6 @@ const kpiTones: Record<OverviewKpiId, "primary" | "warning" | "default"> = {
   risco: "warning",
   ndvi: "primary",
   umidade: "primary",
-  produtividade: "primary",
   temp: "default",
   solo: "default",
 };
@@ -87,8 +82,6 @@ const cropStatusClass = {
 
 function Overview() {
   const kpis = getOverviewKpis();
-  const primaryKpis = kpis.slice(0, 4);
-  const secondaryKpis = kpis.slice(4);
 
   return (
     <>
@@ -142,10 +135,8 @@ function Overview() {
                     <dd className="font-medium text-foreground">{c.ndvi.toFixed(2)}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Produtividade</dt>
-                    <dd className="font-medium text-foreground">
-                      {c.produtividade} {c.prodUnit}
-                    </dd>
+                    <dt className="text-muted-foreground">Estágio</dt>
+                    <dd className="font-medium text-foreground">{c.stage}</dd>
                   </div>
                 </dl>
               </div>
@@ -171,8 +162,8 @@ function Overview() {
         </div>
       </SectionCard>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {primaryKpis.map((k) => (
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {kpis.map((k) => (
           <KpiCard
             key={k.id}
             label={k.label}
@@ -185,21 +176,7 @@ function Overview() {
         ))}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {secondaryKpis.map((k) => (
-          <KpiCard
-            key={k.id}
-            label={k.label}
-            value={k.value}
-            unit={k.unit}
-            delta={k.delta}
-            icon={kpiIcons[k.id]}
-            tone={kpiTones[k.id]}
-          />
-        ))}
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard title="Histórico Climático" subtitle="Temperatura e chuva — 12 meses">
           <div className="h-56">
             <ResponsiveContainer>
@@ -234,22 +211,6 @@ function Overview() {
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} domain={[0, 1]} />
                 <Tooltip {...chartTooltip} />
                 <Line type="monotone" dataKey="ndvi" stroke="#6BE234" strokeWidth={2.5} dot={{ fill: "#6BE234", r: 3 }} name="NDVI" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Produtividade por Cultura" subtitle="Café e soja — últimas safras">
-          <div className="h-56">
-            <ResponsiveContainer>
-              <LineChart data={cropProductivityTrend}>
-                <CartesianGrid stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="s" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip {...chartTooltip} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="cafe" stroke="#8B4513" strokeWidth={2} dot={{ r: 3 }} name="Café (sc/ha)" />
-                <Line type="monotone" dataKey="soja" stroke="#6BE234" strokeWidth={2} dot={{ r: 3 }} name="Soja (sc/ha)" />
               </LineChart>
             </ResponsiveContainer>
           </div>
