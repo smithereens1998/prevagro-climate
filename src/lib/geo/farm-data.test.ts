@@ -58,6 +58,20 @@ describe("FARM_METRICS", () => {
   });
 });
 
+describe("mock derivado", () => {
+  it("FARM_CROPS soma a área do perímetro", async () => {
+    const { FARM_CROPS } = await import("./farm-data");
+    const total = FARM_CROPS.reduce((acc, c) => acc + c.areaHa, 0);
+    expect(total).toBe(FARM_PERIMETER.properties.hectares);
+  });
+
+  it("getWeightedProductivity reflete café e soja", async () => {
+    const { getWeightedProductivity } = await import("./farm-data");
+    expect(getWeightedProductivity()).toBeGreaterThan(40);
+    expect(getWeightedProductivity()).toBeLessThan(75);
+  });
+});
+
 describe("farmBounds", () => {
   it("engloba todos os vértices do perímetro", () => {
     const [[minLon, minLat], [maxLon, maxLat]] = farmBounds();

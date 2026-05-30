@@ -34,6 +34,9 @@ export type VizMode = "auto" | "heatmap" | "geometry" | "columns";
 
 export type BasemapId = "satellite" | "terrain" | "dark";
 
+/** Nenhuma camada de dados ativa ao abrir o mapa — usuário liga manualmente. */
+export const DEFAULT_ACTIVE_LAYERS: LayerId[] = [];
+
 /** satellite-v9 evita sprites de rótulos (ex.: br-state-4) que geram warnings. */
 export const BASEMAP_STYLES: Record<BasemapId, string> = {
   satellite: "mapbox://styles/mapbox/satellite-v9",

@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { PageHeader, SectionCard } from "@/components/ui-bits";
-import { Brain, Sparkles, TrendingUp, Sprout } from "lucide-react";
+import { Brain, TrendingUp, Sprout } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { FARM_METRICS } from "@/lib/geo/farm-data";
+import {
+  FARM_KPI_DELTAS,
+  FARM_METRICS,
+  getRiskBreakdown,
+  getWeightedProductivity,
+} from "@/lib/geo/farm-data";
 import {
   FARM_NAME,
   FARM_SAFRA,
@@ -30,15 +35,15 @@ function AnalisesPage() {
         description={`Insights preditivos para ${FARM_NAME} — café e soja.`}
       />
 
-      <div className="mb-6 flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface/60 p-1.5 w-fit">
+      <div className="mb-6 flex flex-wrap gap-1 rounded-lg border border-border bg-surface p-1 w-fit">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               tab === t
-                ? "bg-primary text-primary-foreground"
+                ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -57,21 +62,21 @@ function AnalisesPage() {
         title="Recomendação Estratégica IA"
         subtitle={`Síntese das análises · safra ${FARM_SAFRA}`}
         action={
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Sparkles className="h-4 w-4" /> Regenerar
+          <Button size="sm" variant="outline">
+            Regenerar
           </Button>
         }
       >
-        <div className="flex gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
-            <Brain className="h-5 w-5" />
+        <div className="flex gap-4 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+            <Brain className="h-4 w-4" />
           </div>
-          <div className="space-y-3 text-sm leading-relaxed text-foreground/90">
+          <div className="space-y-2 text-sm leading-relaxed text-foreground">
             <p>{strategicInsight.summary}</p>
             <p className="text-muted-foreground">{strategicInsight.action}</p>
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               {strategicInsight.tags.map((t) => (
-                <span key={t} className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary">
+                <span key={t} className="rounded-md border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground">
                   {t}
                 </span>
               ))}
@@ -86,6 +91,7 @@ function AnalisesPage() {
 function RiskCard() {
   const score = RISK_SCORE;
   const label = FARM_METRICS.risco;
+  const risk = getRiskBreakdown();
   return (
     <SectionCard title="Análise de Risco IA" subtitle="Risco climático no perímetro">
       <div className="flex items-center gap-5">
@@ -102,16 +108,25 @@ function RiskCard() {
         </div>
       </div>
       <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
-        <li className="flex justify-between"><span>Hídrico</span><span className="text-warning">Médio</span></li>
-        <li className="flex justify-between"><span>Térmico</span><span className="text-primary">Baixo</span></li>
-        <li className="flex justify-between"><span>Fitossanitário (soja)</span><span className="text-warning">Médio</span></li>
+        <li className="flex justify-between">
+          <span>Hídrico</span>
+          <span className={risk.hidrico === "Baixo" ? "text-primary" : "text-warning"}>{risk.hidrico}</span>
+        </li>
+        <li className="flex justify-between">
+          <span>Térmico</span>
+          <span className={risk.termico === "Baixo" ? "text-primary" : "text-warning"}>{risk.termico}</span>
+        </li>
+        <li className="flex justify-between">
+          <span>Fitossanitário (soja)</span>
+          <span className="text-warning">{risk.fitossanitario}</span>
+        </li>
       </ul>
     </SectionCard>
   );
 }
 
 function ProductivityCard() {
-  const p = FARM_METRICS.produtividade;
+  const p = getWeightedProductivity();
   return (
     <SectionCard title="Análise de Produtividade IA" subtitle="Média ponderada café + soja">
       <div className="flex items-center gap-3">
@@ -123,11 +138,14 @@ function ProductivityCard() {
             {p.toFixed(1).replace(".", ",")}{" "}
             <span className="text-sm text-muted-foreground">sc/ha</span>
           </p>
-          <p className="text-sm text-primary font-medium">+8% vs safra anterior</p>
+          <p className="text-sm text-primary font-medium">+{FARM_KPI_DELTAS.produtividade}% vs safra anterior</p>
         </div>
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-gradient-to-r from-secondary to-primary" style={{ width: `${p}%` }} />
+        <div
+          className="h-full bg-primary"
+          style={{ width: `${Math.min(100, (p / 80) * 100)}%` }}
+        />
       </div>
       <p className="mt-2 text-xs text-muted-foreground">Café 42 sc/ha · Soja 68 sc/ha · confiança 92%</p>
     </SectionCard>

@@ -1,48 +1,30 @@
-import { FARM_METRICS, FARM_PERIMETER } from "@/lib/geo/farm-data";
+import {
+  FARM_CROPS,
+  FARM_KPI_DELTAS,
+  FARM_METRICS,
+  FARM_PERIMETER,
+  FARM_SNAPSHOT,
+  getCropSharePct,
+  getRiskBreakdown,
+  getRiskScore,
+  getWeightedProductivity,
+  type FarmCrop,
+} from "@/lib/geo/farm-data";
 
 export const FARM_NAME = FARM_PERIMETER.properties.nome;
 export const FARM_MUNICIPIO = FARM_PERIMETER.properties.municipio;
 export const FARM_HECTARES = FARM_PERIMETER.properties.hectares;
 export const FARM_SAFRA = FARM_PERIMETER.properties.safra;
-export const RISK_SCORE = Math.round(FARM_METRICS.riscoScore * 100);
+export const RISK_SCORE = getRiskScore();
+export const WEIGHTED_PRODUCTIVITY = getWeightedProductivity();
 
-export type CropFocus = {
-  id: "cafe" | "soja";
-  name: string;
-  areaHa: number;
-  sharePct: number;
-  ndvi: number;
-  produtividade: number;
-  prodUnit: string;
-  stage: string;
-  status: "ok" | "warn" | "new" | "done";
-};
+export type CropFocus = FarmCrop & { sharePct: number };
 
-/** Culturas em foco: café (principal) + soja (rotação). */
-export const CROP_FOCUS: CropFocus[] = [
-  {
-    id: "cafe",
-    name: "Café",
-    areaHa: 520,
-    sharePct: 67,
-    ndvi: 0.68,
-    produtividade: 42,
-    prodUnit: "sc/ha",
-    stage: "Grãos formados",
-    status: "ok",
-  },
-  {
-    id: "soja",
-    name: "Soja",
-    areaHa: 262,
-    sharePct: 33,
-    ndvi: 0.58,
-    produtividade: 68,
-    prodUnit: "sc/ha",
-    stage: "Enchimento",
-    status: "warn",
-  },
-];
+/** Culturas em foco com participação calculada a partir do mock. */
+export const CROP_FOCUS: CropFocus[] = FARM_CROPS.map((c) => ({
+  ...c,
+  sharePct: getCropSharePct(c.areaHa),
+}));
 
 export const chartTooltip = {
   contentStyle: {
@@ -60,8 +42,12 @@ const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "
 /** Série mensal determinística (clima) alinhada à região Cerrado Mineiro. */
 export const monthlyClimate = MONTHS.map((m, i) => ({
   m,
-  temp: Number((26 + Math.sin(i / 2) * 4 + (i > 4 && i < 9 ? 2 : 0)).toFixed(1)),
-  chuva: Math.round(40 + Math.cos(i / 2) * 55 + (i >= 9 || i <= 2 ? 30 : 0)),
+  temp: Number((FARM_METRICS.temp - 2.5 + Math.sin(i / 2) * 4 + (i > 4 && i < 9 ? 2 : 0)).toFixed(1)),
+  chuva: Math.round(
+    FARM_SNAPSHOT.chuvaAcumuladaMm / 12 +
+      Math.cos(i / 2) * 18 +
+      (i >= 9 || i <= 2 ? 12 : 0),
+  ),
 }));
 
 /** NDVI mensal com pico na estação úmida. */
@@ -70,39 +56,115 @@ export const monthlyNdvi = MONTHS.map((m, i) => ({
   ndvi: Number((FARM_METRICS.ndvi - 0.12 + Math.sin((i - 2) / 2.4) * 0.18).toFixed(2)),
 }));
 
+const cafeProd = FARM_CROPS[0].produtividade;
+const sojaProd = FARM_CROPS[1].produtividade;
+
 /** Produtividade por cultura (últimas safras). */
 export const cropProductivityTrend = [
-  { s: "21/22", cafe: 38, soja: 58 },
-  { s: "22/23", cafe: 40, soja: 62 },
-  { s: "23/24", cafe: 41, soja: 65 },
-  { s: "24/25", cafe: 42, soja: 68 },
+  { s: "21/22", cafe: cafeProd - 4, soja: sojaProd - 10 },
+  { s: "22/23", cafe: cafeProd - 2, soja: sojaProd - 6 },
+  { s: "23/24", cafe: cafeProd - 1, soja: sojaProd - 3 },
+  { s: "24/25", cafe: cafeProd, soja: sojaProd },
 ];
 
 export const suitabilityCrops = [
-  { name: "Café", score: 96 },
-  { name: "Soja", score: 88 },
+  { name: "Café", score: Math.round(88 + FARM_CROPS[0].ndvi * 12) },
+  { name: "Soja", score: Math.round(78 + FARM_CROPS[1].ndvi * 14) },
 ];
+
+const risk = getRiskBreakdown();
+const soja = FARM_CROPS[1];
 
 export const aiRecommendations = [
   {
     title: "Irrigação suplementar",
-    desc: `Umidade do solo em ${FARM_METRICS.umidade}% — déficit leve previsto na área de soja nos próximos 10 dias.`,
+    desc: `Umidade do solo em ${FARM_METRICS.umidade}% — déficit de ${FARM_SNAPSHOT.deficitHidricoMm} mm na janela de ${FARM_SNAPSHOT.windowDays} dias. Priorize a área de soja (${soja.areaHa} ha).`,
     tone: "primary" as const,
   },
   {
     title: "Monitorar ferrugem (soja)",
-    desc: "Condições de umidade favorecem pressão fúngica na parcela de soja. Vistoria recomendada esta semana.",
+    desc: `Pressão fitossanitária ${risk.fitossanitario.toLowerCase()} com NDVI ${soja.ndvi.toFixed(2)} em ${soja.stage.toLowerCase()}. Vistoria recomendada esta semana.`,
     tone: "warning" as const,
   },
   {
     title: "Risco de seca moderado",
-    desc: `Score climático ${RISK_SCORE}/100. Janela seca de 12–14 dias pode impactar enchimento de grãos do café.`,
+    desc: `Score climático ${RISK_SCORE}/100 (${FARM_METRICS.risco.toLowerCase()}). ET₀ ${FARM_SNAPSHOT.evapotranspiracaoMm} mm vs chuva ${FARM_SNAPSHOT.chuvaAcumuladaMm} mm no período.`,
     tone: "danger" as const,
   },
 ];
 
 export const strategicInsight = {
-  summary: `Com base nos últimos 30 dias, a ${FARM_NAME} apresenta risco climático moderado (${RISK_SCORE}/100), com umidade do solo em ${FARM_METRICS.umidade}% e NDVI médio de ${FARM_METRICS.ndvi.toFixed(2)} no perímetro de ${FARM_HECTARES} ha.`,
-  action: `Priorize irrigação na área de soja (${CROP_FOCUS[1].areaHa} ha), manejo fitossanitário na soja e monitoramento hídrico do café. Projeção: +6 a +9 sc/ha com intervenções nas duas culturas.`,
+  summary: `Com base nos últimos ${FARM_SNAPSHOT.windowDays} dias, a ${FARM_NAME} apresenta risco climático ${FARM_METRICS.risco.toLowerCase()} (${RISK_SCORE}/100), umidade ${FARM_METRICS.umidade}%, NDVI ${FARM_METRICS.ndvi.toFixed(2)} e solo ${Math.round(FARM_METRICS.soloScore * 100)}/100 no perímetro de ${FARM_HECTARES} ha.`,
+  action: `Priorize irrigação na soja (${soja.areaHa} ha), manejo fitossanitário (${risk.fitossanitario.toLowerCase()}) e monitoramento hídrico do café (${FARM_CROPS[0].areaHa} ha). Projeção: +${FARM_KPI_DELTAS.produtividade} a +${FARM_KPI_DELTAS.produtividade + 1} sc/ha com intervenções.`,
   tags: ["Irrigação soja", "Manejo ferrugem", "Monitorar seca", "Adubação café"],
 };
+
+export type OverviewKpiId =
+  | "risco"
+  | "ndvi"
+  | "umidade"
+  | "produtividade"
+  | "temp"
+  | "solo";
+
+export type OverviewKpi = {
+  id: OverviewKpiId;
+  label: string;
+  value: string;
+  unit?: string;
+  delta: number;
+  tone: "primary" | "warning" | "default";
+};
+
+/** KPIs da visão geral — valores e deltas derivados do mock central. */
+export const getOverviewKpis = (): OverviewKpi[] => [
+  {
+    id: "risco",
+    label: "Risco Climático",
+    value: String(RISK_SCORE),
+    unit: "/100",
+    delta: FARM_KPI_DELTAS.risco,
+    tone: "warning",
+  },
+  {
+    id: "ndvi",
+    label: "Índice de Vegetação (NDVI)",
+    value: FARM_METRICS.ndvi.toFixed(2),
+    delta: FARM_KPI_DELTAS.ndvi,
+    tone: "primary",
+  },
+  {
+    id: "umidade",
+    label: "Umidade do Solo",
+    value: String(FARM_METRICS.umidade),
+    unit: "%",
+    delta: FARM_KPI_DELTAS.umidade,
+    tone: "primary",
+  },
+  {
+    id: "produtividade",
+    label: "Produtividade Média",
+    value: WEIGHTED_PRODUCTIVITY.toFixed(1).replace(".", ","),
+    unit: "sc/ha",
+    delta: FARM_KPI_DELTAS.produtividade,
+    tone: "primary",
+  },
+  {
+    id: "temp",
+    label: "Temperatura Média",
+    value: FARM_METRICS.temp.toFixed(1).replace(".", ","),
+    unit: "°C",
+    delta: FARM_KPI_DELTAS.temp,
+    tone: "default",
+  },
+  {
+    id: "solo",
+    label: "Qualidade do Solo",
+    value: String(Math.round(FARM_METRICS.soloScore * 100)),
+    unit: "/100",
+    delta: FARM_KPI_DELTAS.solo,
+    tone: "default",
+  },
+];
+
+export { FARM_KPI_DELTAS, FARM_SNAPSHOT, getRiskBreakdown, getWeightedProductivity };

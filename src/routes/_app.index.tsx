@@ -4,10 +4,12 @@ import {
   Droplets,
   Sprout,
   TrendingUp,
-  Sparkles,
   AlertTriangle,
   Beaker,
   CloudRain,
+  Thermometer,
+  Mountain,
+  Brain,
 } from "lucide-react";
 import {
   Area,
@@ -22,9 +24,9 @@ import {
   YAxis,
 } from "recharts";
 import { KpiCard, PageHeader, SectionCard } from "@/components/ui-bits";
-import { SatelliteMap } from "@/components/SatelliteMap";
+import { FarmMapPreview } from "@/components/FarmMapPreview";
 import { Button } from "@/components/ui/button";
-import { FARM_METRICS } from "@/lib/geo/farm-data";
+import { cn } from "@/lib/utils";
 import {
   aiRecommendations,
   chartTooltip,
@@ -34,9 +36,12 @@ import {
   FARM_NAME,
   FARM_MUNICIPIO,
   FARM_SAFRA,
+  FARM_SNAPSHOT,
+  getOverviewKpis,
   monthlyClimate,
   monthlyNdvi,
-  RISK_SCORE,
+  strategicInsight,
+  type OverviewKpiId,
 } from "@/lib/farm-insights";
 
 export const Route = createFileRoute("/_app/")({
@@ -55,30 +60,57 @@ const recIcons = {
   danger: CloudRain,
 } as const;
 
+const kpiIcons: Record<OverviewKpiId, typeof Sprout> = {
+  risco: AlertTriangle,
+  ndvi: Sprout,
+  umidade: Droplets,
+  produtividade: TrendingUp,
+  temp: Thermometer,
+  solo: Mountain,
+};
+
+const kpiTones: Record<OverviewKpiId, "primary" | "warning" | "default"> = {
+  risco: "warning",
+  ndvi: "primary",
+  umidade: "primary",
+  produtividade: "primary",
+  temp: "default",
+  solo: "default",
+};
+
+const cropStatusClass = {
+  ok: "bg-primary/15 text-primary",
+  warn: "bg-warning/15 text-warning",
+  done: "bg-muted text-muted-foreground",
+  new: "bg-secondary/20 text-secondary",
+} as const;
+
 function Overview() {
-  const m = FARM_METRICS;
-  const cafe = CROP_FOCUS[0];
-  const soja = CROP_FOCUS[1];
+  const kpis = getOverviewKpis();
+  const primaryKpis = kpis.slice(0, 4);
+  const secondaryKpis = kpis.slice(4);
 
   return (
     <>
       <PageHeader
         title="Visão Geral"
-        description={`${FARM_NAME} · ${FARM_MUNICIPIO} — café e soja na safra ${FARM_SAFRA}.`}
+        description={`${FARM_NAME} · ${FARM_MUNICIPIO} — café e soja na safra ${FARM_SAFRA}. Dados atualizados em ${FARM_SNAPSHOT.updatedAt}.`}
         action={
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
-            <Sparkles className="h-4 w-4" /> Gerar análise IA
+          <Button>
+            <Brain className="h-4 w-4" /> Gerar análise
           </Button>
         }
       />
 
       <SectionCard
         title={`Mapa de Risco — ${FARM_NAME}`}
-        subtitle={`Heatmap no perímetro · ${FARM_HECTARES} ha · Patrocínio/MG`}
+        subtitle={`Mapbox GL · heatmap nativo · ${FARM_HECTARES} ha · Patrocínio/MG`}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">Exportar</Button>
-            <Button asChild size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button variant="outline" size="sm">
+              Exportar
+            </Button>
+            <Button asChild size="sm">
               <Link to="/mapa">Abrir mapa</Link>
             </Button>
           </div>
@@ -86,56 +118,85 @@ function Overview() {
         className="mb-6"
       >
         <div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]">
-          <SatelliteMap className="h-[360px]" />
+          <FarmMapPreview className="h-[360px]" />
           <div className="flex flex-col gap-3">
-            {[
-              { label: "Área total", v: String(FARM_HECTARES), u: "ha" },
-              { label: "Café", v: String(cafe.areaHa), u: `ha (${cafe.sharePct}%)` },
-              { label: "Soja", v: String(soja.areaHa), u: `ha (${soja.sharePct}%) · ${FARM_SAFRA}` },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-border bg-surface/60 p-4">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-                  {s.v} <span className="text-sm font-normal text-muted-foreground">{s.u}</span>
-                </p>
+            {CROP_FOCUS.map((c) => (
+              <div key={c.id} className="rounded-lg border border-border bg-surface p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{c.name}</p>
+                    <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+                      {c.areaHa}{" "}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ha ({c.sharePct}%)
+                      </span>
+                    </p>
+                  </div>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", cropStatusClass[c.status])}>
+                    {c.stage}
+                  </span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">NDVI</dt>
+                    <dd className="font-medium text-foreground">{c.ndvi.toFixed(2)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Produtividade</dt>
+                    <dd className="font-medium text-foreground">
+                      {c.produtividade} {c.prodUnit}
+                    </dd>
+                  </div>
+                </dl>
               </div>
             ))}
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <p className="text-xs text-muted-foreground">Hidrologia ({FARM_SNAPSHOT.windowDays} dias)</p>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{FARM_SNAPSHOT.chuvaAcumuladaMm}</p>
+                  <p className="text-muted-foreground">mm chuva</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{FARM_SNAPSHOT.evapotranspiracaoMm}</p>
+                  <p className="text-muted-foreground">mm ET₀</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-warning">{FARM_SNAPSHOT.deficitHidricoMm}</p>
+                  <p className="text-muted-foreground">mm déficit</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </SectionCard>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Risco Climático"
-          value={String(RISK_SCORE)}
-          unit="/100"
-          delta={-4}
-          icon={AlertTriangle}
-          tone="warning"
-        />
-        <KpiCard
-          label="Índice de Vegetação (NDVI)"
-          value={m.ndvi.toFixed(2)}
-          delta={5}
-          icon={Sprout}
-          tone="primary"
-        />
-        <KpiCard
-          label="Umidade do Solo"
-          value={String(m.umidade)}
-          unit="%"
-          delta={3}
-          icon={Droplets}
-          tone="primary"
-        />
-        <KpiCard
-          label="Produtividade Estimada"
-          value={m.produtividade.toFixed(1).replace(".", ",")}
-          unit="sc/ha"
-          delta={8}
-          icon={TrendingUp}
-          tone="primary"
-        />
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {primaryKpis.map((k) => (
+          <KpiCard
+            key={k.id}
+            label={k.label}
+            value={k.value}
+            unit={k.unit}
+            delta={k.delta}
+            icon={kpiIcons[k.id]}
+            tone={kpiTones[k.id]}
+          />
+        ))}
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {secondaryKpis.map((k) => (
+          <KpiCard
+            key={k.id}
+            label={k.label}
+            value={k.value}
+            unit={k.unit}
+            delta={k.delta}
+            icon={kpiIcons[k.id]}
+            tone={kpiTones[k.id]}
+          />
+        ))}
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -196,9 +257,36 @@ function Overview() {
       </div>
 
       <SectionCard
+        title="Insight Estratégico"
+        subtitle={`Síntese IA · janela de ${FARM_SNAPSHOT.windowDays} dias`}
+        className="mb-6"
+      >
+        <div className="flex gap-4 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+            <Brain className="h-4 w-4" />
+          </div>
+          <div className="space-y-2 text-sm leading-relaxed text-foreground">
+            <p>{strategicInsight.summary}</p>
+            <p className="text-muted-foreground">{strategicInsight.action}</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {strategicInsight.tags.map((t) => (
+                <span key={t} className="rounded-md border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
         title="Recomendações da IA"
-        subtitle="Foco em café e soja — dados das últimas 24h"
-        action={<span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">{aiRecommendations.length} ativas</span>}
+        subtitle="Foco em café e soja — derivadas do mock operacional"
+        action={
+          <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+            {aiRecommendations.length} ativas
+          </span>
+        }
       >
         <div className="grid gap-3 md:grid-cols-3">
           {aiRecommendations.map((r) => {
@@ -210,7 +298,7 @@ function Overview() {
                   ? "text-warning bg-warning/10"
                   : "text-destructive bg-destructive/10";
             return (
-              <div key={r.title} className="rounded-xl border border-border bg-surface/60 p-4 transition-colors hover:border-primary/30">
+              <div key={r.title} className="rounded-lg border border-border bg-surface p-4">
                 <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
                   <Icon className="h-4 w-4" />
                 </div>

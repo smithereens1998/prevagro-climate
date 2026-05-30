@@ -6,7 +6,6 @@ import { Crosshair, Plus, Minus, Box } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MapLegend } from "@/components/MapLegend";
 import {
-  FARM_CENTER,
   FARM_PERIMETER,
   farmBounds,
   makeHeatGeoJSON,
@@ -33,7 +32,19 @@ import {
   toRgba,
 } from "@/lib/geo/map-colors";
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+import {
+  addMapControls,
+  bindFarmPerimeterPopup,
+  bindMapboxResize,
+  bindStyleImageFallback,
+  clearTerrain,
+  defaultMapView,
+  MAPBOX_TOKEN,
+  paddedMaxBounds,
+  runWhenMapReady,
+  setupTerrain,
+  syncMapboxPerimeter,
+} from "@/lib/geo/mapbox-shared";
 
 type GeoMapProps = {
   className?: string;
@@ -58,43 +69,6 @@ const heatRangeForLayer = (layerId: LayerId) => {
   return RISK_RANGE;
 };
 
-const setupTerrain = (map: any) => {
-  if (!map.getSource("mapbox-dem")) {
-    map.addSource("mapbox-dem", {
-      type: "raster-dem",
-      url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-      tileSize: 512,
-      maxzoom: 14,
-    });
-  }
-  map.setTerrain({ source: "mapbox-dem", exaggeration: 1.4 });
-  if (!map.getLayer("sky")) {
-    map.addLayer({
-      id: "sky",
-      type: "sky",
-      paint: {
-        "sky-type": "atmosphere",
-        "sky-atmosphere-sun": [0.0, 90.0],
-        "sky-atmosphere-sun-intensity": 12,
-      },
-    });
-  }
-};
-
-const clearTerrain = (map: any) => {
-  map.setTerrain(null);
-  if (map.getLayer("sky")) map.removeLayer("sky");
-};
-
-const runWhenMapReady = (map: any, fn: () => void) => {
-  if (!map) return;
-  if (map.isStyleLoaded()) {
-    fn();
-    return;
-  }
-  map.once("idle", fn);
-};
-
 const apply3DView = (map: any, is3D: boolean) => {
   if (is3D) {
     setupTerrain(map);
@@ -105,10 +79,6 @@ const apply3DView = (map: any, is3D: boolean) => {
   map.easeTo({ pitch: 0, bearing: BEARING, duration: 700 });
 };
 
-const PERIMETER_SOURCE = "prevagro-perimeter";
-const PERIMETER_FILL = "prevagro-perimeter-fill";
-const PERIMETER_LINE = "prevagro-perimeter-line";
-const PERIMETER_GLOW = "prevagro-perimeter-glow";
 const DATA_LAYER_PREFIX = "prevagro-data";
 
 const removeMapboxDataLayers = (map: any) => {
@@ -188,77 +158,6 @@ const syncMapboxDataLayers = (
   }
 };
 
-/** Contorno nativo Mapbox — fica acima do relevo/terrain e visível no modo calor. */
-const syncMapboxPerimeter = (map: any, is3D = false) => {
-  if (!map.getSource(PERIMETER_SOURCE)) {
-    map.addSource(PERIMETER_SOURCE, { type: "geojson", data: FARM_PERIMETER });
-  } else {
-    map.getSource(PERIMETER_SOURCE).setData(FARM_PERIMETER);
-  }
-
-  if (!map.getLayer(PERIMETER_FILL)) {
-    map.addLayer({
-      id: PERIMETER_FILL,
-      type: "fill",
-      source: PERIMETER_SOURCE,
-      paint: {
-        "fill-color": "#7CEC52",
-        "fill-opacity": 0.14,
-      },
-    });
-  }
-
-  if (!map.getLayer(PERIMETER_GLOW)) {
-    map.addLayer({
-      id: PERIMETER_GLOW,
-      type: "line",
-      source: PERIMETER_SOURCE,
-      paint: {
-        "line-color": "#ffffff",
-        "line-width": 5,
-        "line-opacity": 0.55,
-      },
-    });
-  }
-
-  if (!map.getLayer(PERIMETER_LINE)) {
-    map.addLayer({
-      id: PERIMETER_LINE,
-      type: "line",
-      source: PERIMETER_SOURCE,
-      paint: {
-        "line-color": "#7CEC52",
-        "line-width": 2.5,
-        "line-opacity": 1,
-      },
-    });
-  }
-
-  if (map.getLayer(PERIMETER_FILL)) {
-    map.setPaintProperty(PERIMETER_FILL, "fill-opacity", is3D ? 0.04 : 0.14);
-  }
-
-  // Garante contorno sempre no topo (acima de heatmap deck e hillshade).
-  for (const id of [PERIMETER_FILL, PERIMETER_GLOW, PERIMETER_LINE]) {
-    if (map.getLayer(id)) map.moveLayer(id);
-  }
-};
-
-/** Silencia sprites ausentes (ex.: br-state-4) em estilos com rótulos administrativos. */
-const bindStyleImageFallback = (map: any) => {
-  if (map.__prevagroStyleImageBound) return;
-  map.__prevagroStyleImageBound = true;
-  map.on("styleimagemissing", (e: { id: string }) => {
-    if (map.hasImage(e.id)) return;
-    const size = 1;
-    map.addImage(
-      e.id,
-      { width: size, height: size, data: new Uint8Array(size * size * 4) },
-      { pixelRatio: 1 },
-    );
-  });
-};
-
 export function GeoMap({
   className,
   activeLayers,
@@ -270,6 +169,7 @@ export function GeoMap({
 }: GeoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const mapboxglRef = useRef<any>(null);
   const overlayRef = useRef<any>(null);
   const MapboxOverlayRef = useRef<any>(null);
   const libsRef = useRef<any>(null);
@@ -321,16 +221,17 @@ export function GeoMap({
 
         MapboxOverlayRef.current = MapboxOverlay;
         libsRef.current = { GeoJsonLayer, ColumnLayer };
+        mapboxglRef.current = mapboxgl;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
+        const view = defaultMapView();
         const map = new mapboxgl.Map({
           container: containerRef.current,
           style: BASEMAP_STYLES[basemap],
-          center: FARM_CENTER,
-          zoom: 11.2,
-          pitch: 0,
-          bearing: -14,
+          ...view,
+          maxBounds: paddedMaxBounds(),
           antialias: true,
+          cooperativeGestures: true,
         });
 
         mapRef.current = map;
@@ -338,6 +239,8 @@ export function GeoMap({
 
         map.on("load", () => {
           if (cancelled) return;
+          bindFarmPerimeterPopup(map, mapboxgl);
+          addMapControls(map, mapboxgl, { scale: true, navigation: false });
           syncMapboxPerimeter(map, is3D);
           attachDeckOverlay(map);
           map.fitBounds(farmBounds(), { padding: 64, duration: 0 });
@@ -358,6 +261,12 @@ export function GeoMap({
   }, []);
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    return bindMapboxResize(container, () => mapRef.current);
+  }, [ready]);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map || prevBasemap.current === basemap) return;
     prevBasemap.current = basemap;
@@ -366,6 +275,10 @@ export function GeoMap({
     map.setStyle(BASEMAP_STYLES[basemap]);
     map.once("style.load", () => {
       bindStyleImageFallback(map);
+      map.__prevagroPopupBound = false;
+      map.__prevagroControlsBound = false;
+      bindFarmPerimeterPopup(map, mapboxglRef.current);
+      addMapControls(map, mapboxglRef.current, { scale: true, navigation: false });
       syncMapboxPerimeter(map, is3DRef.current);
       attachDeckOverlay(map);
       if (is3DRef.current) setupTerrain(map);
@@ -470,22 +383,22 @@ export function GeoMap({
   };
 
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl border border-border", className)}>
+    <div className={cn("relative overflow-hidden rounded-lg border border-border", className)}>
       <div ref={containerRef} className="absolute inset-0 h-full w-full [&_.mapboxgl-ctrl-attrib]:text-[10px]" />
 
       {!ready && !failed && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 text-sm text-muted-foreground backdrop-blur">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/90 text-sm text-muted-foreground">
           Carregando mapa…
         </div>
       )}
       {failed && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/70 px-6 text-center text-sm text-muted-foreground backdrop-blur">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/90 px-6 text-center text-sm text-muted-foreground">
           Não foi possível carregar o mapa. Verifique o token Mapbox (VITE_MAPBOX_TOKEN) e a conexão.
         </div>
       )}
 
       <div className="pointer-events-none absolute inset-0">
-        <div className="pointer-events-auto absolute right-3 top-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/70 p-1 backdrop-blur">
+        <div className="pointer-events-auto absolute right-3 top-3 flex flex-col gap-1 rounded-lg border border-border bg-background p-1">
           <button type="button" aria-label="Aproximar" onClick={handleZoom(1)} className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
             <Plus className="h-4 w-4" />
           </button>

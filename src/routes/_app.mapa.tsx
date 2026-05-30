@@ -8,6 +8,7 @@ import { Box, Download, Layers, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FARM_METRICS, FARM_PERIMETER, type Risco } from "@/lib/geo/farm-data";
 import {
+  DEFAULT_ACTIVE_LAYERS,
   LAYER_IDS,
   LAYER_META,
   type BasemapId,
@@ -39,7 +40,7 @@ const riscoTone: Record<Risco, string> = {
 };
 
 function MapaPage() {
-  const [active, setActive] = useState<string[]>(["Vegetação", "Risco Climático"]);
+  const [active, setActive] = useState<string[]>([...DEFAULT_ACTIVE_LAYERS]);
   const [basemap, setBasemap] = useState<BasemapId>("satellite");
   const [vizMode, setVizMode] = useState<VizMode>("auto");
   const [layerOpacity, setLayerOpacity] = useState(0.85);
@@ -75,7 +76,7 @@ function MapaPage() {
             >
               <Box className="h-4 w-4" /> {is3D ? "Visão 2D" : "Visão 3D"}
             </Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button size="sm">
               <Download className="h-4 w-4" /> Exportar
             </Button>
           </div>
@@ -94,7 +95,7 @@ function MapaPage() {
         />
 
         <div className="flex flex-col gap-4">
-          <section className="glass-card rounded-2xl p-4">
+          <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <MapIcon className="h-4 w-4 text-primary" /> Basemap
             </div>
@@ -118,7 +119,7 @@ function MapaPage() {
             </div>
           </section>
 
-          <section className="glass-card rounded-2xl p-4">
+          <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <Layers className="h-4 w-4 text-primary" /> Visualização
             </div>
@@ -156,7 +157,7 @@ function MapaPage() {
             />
           </section>
 
-          <section className="glass-card rounded-2xl p-4">
+          <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <Layers className="h-4 w-4 text-primary" /> Camadas de dados
             </div>
@@ -187,7 +188,7 @@ function MapaPage() {
             </div>
           </section>
 
-          <section className="glass-card rounded-2xl p-4">
+          <section className="panel rounded-lg p-4">
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Perímetro analisado</p>
             <h3 className="mt-1 text-lg font-semibold text-foreground">{farm.nome}</h3>
             <p className="text-xs text-muted-foreground">
@@ -204,7 +205,7 @@ function MapaPage() {
               ))}
             </dl>
 
-            <Button className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button className="mt-4 w-full">
               Ver análise completa
             </Button>
           </section>

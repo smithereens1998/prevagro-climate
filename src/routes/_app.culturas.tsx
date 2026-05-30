@@ -6,8 +6,10 @@ import { cn } from "@/lib/utils";
 import {
   CROP_FOCUS,
   FARM_HECTARES,
+  FARM_KPI_DELTAS,
   FARM_NAME,
   FARM_SAFRA,
+  getWeightedProductivity,
 } from "@/lib/farm-insights";
 
 export const Route = createFileRoute("/_app/culturas")({
@@ -22,8 +24,7 @@ const statusMap = {
   new: "bg-secondary/20 text-secondary",
 } as const;
 
-const avgProd =
-  CROP_FOCUS.reduce((acc, c) => acc + c.produtividade * c.areaHa, 0) / FARM_HECTARES;
+const avgProd = getWeightedProductivity();
 
 function CulturasPage() {
   return (
@@ -32,8 +33,8 @@ function CulturasPage() {
         title="Gestão de Culturas"
         description={`${FARM_NAME} — café e soja na safra ${FARM_SAFRA}.`}
         action={
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
-            <Plus className="h-4 w-4" /> Nova Cultura
+          <Button>
+            <Plus className="h-4 w-4" /> Nova cultura
           </Button>
         }
       />
@@ -48,7 +49,7 @@ function CulturasPage() {
             {avgProd.toFixed(1).replace(".", ",")}{" "}
             <span className="text-base text-primary">↑</span>
           </p>
-          <p className="mt-1 text-xs text-primary">+8% vs média histórica</p>
+          <p className="mt-1 text-xs text-primary">+{FARM_KPI_DELTAS.produtividade}% vs média histórica</p>
         </SectionCard>
         <SectionCard title="Previsão de Colheita" subtitle="Próxima janela">
           <p className="text-2xl font-semibold text-foreground">

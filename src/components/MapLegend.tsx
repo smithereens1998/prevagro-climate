@@ -13,7 +13,7 @@ export const MapLegend = ({ items, className }: MapLegendProps) => {
     return (
       <div
         className={cn(
-          "rounded-lg border border-border bg-background/70 px-3 py-2 text-xs text-muted-foreground backdrop-blur",
+          "rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground",
           className,
         )}
       >
@@ -27,7 +27,7 @@ export const MapLegend = ({ items, className }: MapLegendProps) => {
       {items.map((item) => (
         <div
           key={item.layerId}
-          className="rounded-lg border border-border bg-background/70 px-3 py-2 text-xs backdrop-blur"
+          className="rounded-md border border-border bg-background px-3 py-2 text-xs"
         >
           <p className="mb-1.5 font-medium text-foreground">
             {item.title}

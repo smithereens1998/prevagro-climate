@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader, SectionCard } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
-import { CloudRain, Sprout, FlaskConical, TrendingUp, Download, FileSpreadsheet, Share2, Sparkles } from "lucide-react";
+import { CloudRain, Sprout, FlaskConical, TrendingUp, Download, FileSpreadsheet, Share2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/relatorios")({
@@ -31,8 +31,8 @@ function RelatoriosPage() {
         title="Central de Relatórios"
         description="Documentos prontos para download, exportação e compartilhamento."
         action={
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
-            <Sparkles className="h-4 w-4" /> Gerar Relatório
+          <Button>
+            <Plus className="h-4 w-4" /> Novo relatório
           </Button>
         }
       />
@@ -42,10 +42,10 @@ function RelatoriosPage() {
           <button
             key={c}
             className={cn(
-              "rounded-full border px-4 py-1.5 text-sm transition-colors",
+              "rounded-md border px-3 py-1.5 text-sm transition-colors",
               i === 0
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                ? "border-border bg-muted text-foreground"
+                : "border-border bg-surface text-muted-foreground hover:text-foreground",
             )}
           >
             {c}

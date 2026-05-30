@@ -19,9 +19,43 @@ export type FarmMetrics = {
   umidade: number;
   soloScore: number;
   riscoScore: number;
+  /** Índice 0–100 para camada de produtividade no mapa (não é sc/ha). */
   produtividade: number;
   risco: Risco;
 };
+
+export type CropStatus = "ok" | "warn" | "new" | "done";
+
+export type FarmCrop = {
+  id: "cafe" | "soja";
+  name: string;
+  areaHa: number;
+  ndvi: number;
+  produtividade: number;
+  prodUnit: string;
+  stage: string;
+  status: CropStatus;
+};
+
+/** Variação vs. janela anterior (mock — substituir por API). */
+export const FARM_KPI_DELTAS = {
+  risco: -4,
+  ndvi: 5,
+  umidade: 3,
+  produtividade: 8,
+  temp: -1,
+  solo: 2,
+} as const;
+
+/** Contexto operacional das últimas semanas. */
+export const FARM_SNAPSHOT = {
+  updatedAt: "30/05/2026",
+  windowDays: 30,
+  chuvaAcumuladaMm: 142,
+  evapotranspiracaoMm: 118,
+  deficitHidricoMm: 12,
+  pressaoFungica: "Moderada" as const,
+} as const;
 
 export type PerimeterProps = {
   nome: string;
@@ -51,6 +85,52 @@ export const FARM_METRICS: FarmMetrics = {
   produtividade: 79,
   risco: "Médio",
 };
+
+/** Culturas ativas na safra — áreas somam o perímetro. */
+export const FARM_CROPS: FarmCrop[] = [
+  {
+    id: "cafe",
+    name: "Café",
+    areaHa: 520,
+    ndvi: 0.68,
+    produtividade: 42,
+    prodUnit: "sc/ha",
+    stage: "Grãos formados",
+    status: "ok",
+  },
+  {
+    id: "soja",
+    name: "Soja",
+    areaHa: 262,
+    ndvi: 0.58,
+    produtividade: 68,
+    prodUnit: "sc/ha",
+    stage: "Enchimento",
+    status: "warn",
+  },
+];
+
+export const getRiskScore = () => Math.round(FARM_METRICS.riscoScore * 100);
+
+export const getCropSharePct = (areaHa: number) =>
+  Math.round((areaHa / FARM_PERIMETER.properties.hectares) * 100);
+
+/** Produtividade média ponderada (sc/ha) café + soja. */
+export const getWeightedProductivity = () =>
+  Number(
+    (
+      FARM_CROPS.reduce((acc, c) => acc + c.produtividade * c.areaHa, 0) /
+      FARM_PERIMETER.properties.hectares
+    ).toFixed(1),
+  );
+
+export const getRiskBreakdown = () => ({
+  hidrico:
+    FARM_METRICS.umidade < 55 ? ("Alto" as const) : FARM_METRICS.umidade < 70 ? ("Médio" as const) : ("Baixo" as const),
+  termico:
+    FARM_METRICS.temp > 32 ? ("Alto" as const) : FARM_METRICS.temp > 28 ? ("Médio" as const) : ("Baixo" as const),
+  fitossanitario: FARM_SNAPSHOT.pressaoFungica,
+});
 
 /** Polígono elíptico placeholder (~782 ha) centrado na fazenda. */
 function buildPerimeter(): PerimeterFeature {
