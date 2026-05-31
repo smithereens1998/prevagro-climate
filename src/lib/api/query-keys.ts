@@ -15,6 +15,8 @@ export const apiQueryKeys = {
     ["pipeline", "horizon-features", q?.latitude, q?.longitude] as const,
   horizonHistory: (q?: CoordinateQuery & { limit?: number }) =>
     ["pipeline", "horizon-features", "history", q?.latitude, q?.longitude, q?.limit] as const,
+  seasonalForecastDaily: (q?: CoordinateQuery & { days?: number }) =>
+    ["pipeline", "seasonal-forecast", "daily", q?.latitude, q?.longitude, q?.days] as const,
   dailyFullLatest: ["pipeline", "daily-full", "latest"] as const,
   llmPrediction: (q?: CoordinateQuery) =>
     ["llm", "predictions", q?.latitude, q?.longitude] as const,

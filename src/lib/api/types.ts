@@ -63,6 +63,31 @@ export type HorizonFeaturesHistory = {
   history: HorizonHistoryPoint[];
 };
 
+export type SeasonalForecastDay = {
+  forecast_date: string;
+  temp_mean_c: number | null;
+  temp_max_c: number | null;
+  temp_min_c: number | null;
+  precipitation_mm: number | null;
+  dry_day_flag: boolean;
+};
+
+export type SeasonalForecastDaily = {
+  user_id: number;
+  latitude: number;
+  longitude: number;
+  days: number;
+  source_name: string;
+  model_name: string;
+  summary: {
+    avg_temp_c: number | null;
+    total_precip_mm: number | null;
+    dry_days: number;
+    samples: number;
+  };
+  forecast: SeasonalForecastDay[];
+};
+
 export type DailyFullStep = {
   status: string;
   attempts_used?: number;

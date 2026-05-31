@@ -4,6 +4,8 @@ import type {
   HorizonFeaturesSnapshot,
   HorizonHistoryPoint,
   SatelliteHistoryItem,
+  SeasonalForecastDaily,
+  SeasonalForecastDay,
 } from "./types";
 import { horizonToRiskScore } from "./adapters";
 import type { OverviewKpi, OverviewKpiId } from "@/lib/farm-insights";
@@ -67,6 +69,74 @@ export const buildOverviewKpisFromApi = (
     delta: 0,
     tone: kpiMeta[id].tone,
   }));
+};
+
+const formatDayLabel = (isoDate: string) => {
+  const date = new Date(`${isoDate}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return isoDate.slice(5, 10);
+  return `${date.getUTCDate()}/${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+
+const heatScoreFromTemp = (temp: number | null | undefined) => {
+  if (temp == null || Number.isNaN(temp)) return null;
+  return Math.round(Math.min(Math.max((temp - 24) / 12, 0), 1) * 100);
+};
+
+const waterScoreFromDay = (precip: number | null | undefined, dryDay: boolean) => {
+  if (dryDay) return 90;
+  if (precip == null || Number.isNaN(precip)) return null;
+  const dryness = Math.min(Math.max((5 - precip) / 5, 0), 1);
+  return Math.round(dryness * 100);
+};
+
+export const seasonalForecastToClimateSeries = (forecast: SeasonalForecastDay[]) =>
+  forecast.map((point) => ({
+    m: formatDayLabel(point.forecast_date),
+    temp: point.temp_mean_c ?? 0,
+    chuva: point.precipitation_mm ?? 0,
+  }));
+
+export const seasonalForecastToRiskSeries = (forecast: SeasonalForecastDay[]) =>
+  forecast.map((point) => ({
+    m: formatDayLabel(point.forecast_date),
+    calor: heatScoreFromTemp(point.temp_mean_c) ?? 0,
+    agua: waterScoreFromDay(point.precipitation_mm, point.dry_day_flag) ?? 0,
+  }));
+
+export type Forecast30Metric = {
+  key: string;
+  label: string;
+  value: string;
+  tone: "default" | "warning" | "primary" | "destructive";
+};
+
+export const buildForecast30Metrics = (data?: SeasonalForecastDaily | null): Forecast30Metric[] => {
+  const summary = data?.summary;
+  const avgTemp = summary?.avg_temp_c;
+  const totalRain = summary?.total_precip_mm;
+  const dryDays = summary?.dry_days ?? 0;
+
+  return [
+    {
+      key: "temp",
+      label: "Temp. média",
+      value: avgTemp != null ? `${avgTemp.toFixed(1).replace(".", ",")} °C` : "—",
+      tone:
+        avgTemp != null && avgTemp >= 32 ? "destructive" : avgTemp != null && avgTemp >= 28 ? "warning" : "default",
+    },
+    {
+      key: "rain",
+      label: "Chuva acum.",
+      value: totalRain != null ? `${Math.round(totalRain)} mm` : "—",
+      tone: totalRain != null && totalRain < 30 ? "warning" : "primary",
+    },
+    {
+      key: "dry",
+      label: "Dias secos",
+      value: summary ? String(dryDays) : "—",
+      tone: dryDays >= 15 ? "destructive" : dryDays >= 8 ? "warning" : "default",
+    },
+  ];
 };
 
 const pickHorizonPoints = (history: HorizonHistoryPoint[], horizonMonths = 6) =>

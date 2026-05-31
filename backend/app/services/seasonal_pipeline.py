@@ -357,6 +357,92 @@ async def run_seasonal_pipeline(*, user_id: int | None = None) -> dict[str, Any]
     }
 
 
+def get_seasonal_forecast_daily(
+    *,
+    user_id: int | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    days: int = 30,
+) -> dict[str, Any]:
+    resolved_user_id = user_id or _get_default_user_id()
+    resolved_latitude, resolved_longitude = (
+        (latitude, longitude)
+        if latitude is not None and longitude is not None
+        else _resolve_coordinate(resolved_user_id)
+    )
+    horizon_days = max(1, min(int(days), 90))
+
+    sql = text(
+        """
+        SELECT
+            forecast_date,
+            temp_mean_c,
+            temp_max_c,
+            temp_min_c,
+            precipitation_mm,
+            dry_day_flag,
+            model_name,
+            source_name
+        FROM public.farm_seasonal_forecasts
+        WHERE user_id = :user_id
+          AND latitude = :latitude
+          AND longitude = :longitude
+          AND forecast_date >= CURRENT_DATE
+          AND forecast_date < (CURRENT_DATE + (:days || ' days')::interval)
+        ORDER BY forecast_date ASC
+        """
+    )
+
+    with engine.connect() as connection:
+        rows = connection.execute(
+            sql,
+            {
+                "user_id": resolved_user_id,
+                "latitude": resolved_latitude,
+                "longitude": resolved_longitude,
+                "days": horizon_days,
+            },
+        ).mappings().all()
+
+    forecast: list[dict[str, Any]] = []
+    for row in rows:
+        forecast.append(
+            {
+                "forecast_date": row["forecast_date"].isoformat(),
+                "temp_mean_c": float(row["temp_mean_c"]) if row["temp_mean_c"] is not None else None,
+                "temp_max_c": float(row["temp_max_c"]) if row["temp_max_c"] is not None else None,
+                "temp_min_c": float(row["temp_min_c"]) if row["temp_min_c"] is not None else None,
+                "precipitation_mm": float(row["precipitation_mm"])
+                if row["precipitation_mm"] is not None
+                else None,
+                "dry_day_flag": bool(row["dry_day_flag"]),
+            }
+        )
+
+    source_name = rows[0]["source_name"] if rows else SOURCE_NAME
+    model_name = rows[0]["model_name"] if rows else settings.seasonal_forecast_model
+
+    temps = [row["temp_mean_c"] for row in forecast if row["temp_mean_c"] is not None]
+    precs = [row["precipitation_mm"] for row in forecast if row["precipitation_mm"] is not None]
+    dry_days = sum(1 for row in forecast if row["dry_day_flag"])
+
+    return {
+        "user_id": resolved_user_id,
+        "latitude": resolved_latitude,
+        "longitude": resolved_longitude,
+        "days": horizon_days,
+        "source_name": source_name,
+        "model_name": model_name,
+        "summary": {
+            "avg_temp_c": round(mean(temps), 1) if temps else None,
+            "total_precip_mm": round(sum(precs), 1) if precs else None,
+            "dry_days": dry_days,
+            "samples": len(forecast),
+        },
+        "forecast": forecast,
+    }
+
+
 def get_latest_horizon_features(
     *,
     user_id: int | None = None,

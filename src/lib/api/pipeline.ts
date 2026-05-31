@@ -4,6 +4,7 @@ import type {
   DailyFullLatest,
   HorizonFeaturesHistory,
   HorizonFeaturesSnapshot,
+  SeasonalForecastDaily,
 } from "./types";
 
 export const fetchHorizonFeatures = (query?: CoordinateQuery) =>
@@ -20,6 +21,15 @@ export const fetchHorizonFeaturesHistory = (query?: CoordinateQuery & { limit?: 
       latitude: query?.latitude,
       longitude: query?.longitude,
       limit: query?.limit,
+    },
+  });
+
+export const fetchSeasonalForecastDaily = (query?: CoordinateQuery & { days?: number }) =>
+  apiRequest<SeasonalForecastDaily>("/pipeline/seasonal-forecast/daily", {
+    params: {
+      latitude: query?.latitude,
+      longitude: query?.longitude,
+      days: query?.days ?? 30,
     },
   });
 

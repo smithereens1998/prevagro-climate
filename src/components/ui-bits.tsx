@@ -10,7 +10,7 @@ export function KpiCard({
   icon: Icon,
   tone = "primary",
 }: {
-  label: string;
+  label: React.ReactNode;
   value: string;
   unit?: string;
   delta?: number;

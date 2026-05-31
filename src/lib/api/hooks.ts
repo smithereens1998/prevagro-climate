@@ -13,6 +13,7 @@ import {
   fetchDailyFullLatest,
   fetchHorizonFeatures,
   fetchHorizonFeaturesHistory,
+  fetchSeasonalForecastDaily,
 } from "./pipeline";
 import { apiQueryKeys } from "./query-keys";
 import { ApiError } from "./client";
@@ -84,6 +85,19 @@ export const useHorizonFeaturesHistory = (query?: CoordinateQuery & { limit?: nu
   return useQuery({
     queryKey: apiQueryKeys.horizonHistory(resolved),
     queryFn: () => fetchHorizonFeaturesHistory(resolved),
+    enabled,
+    staleTime: STALE_MS,
+    retry: retryGet,
+  });
+};
+
+export const useSeasonalForecastDaily = (days = 30, query?: CoordinateQuery) => {
+  const location = useFarmLocation();
+  const resolved = { ...location, ...query, days };
+  const enabled = resolved.latitude != null && resolved.longitude != null;
+  return useQuery({
+    queryKey: apiQueryKeys.seasonalForecastDaily(resolved),
+    queryFn: () => fetchSeasonalForecastDaily(resolved),
     enabled,
     staleTime: STALE_MS,
     retry: retryGet,
