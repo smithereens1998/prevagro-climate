@@ -92,6 +92,7 @@ Daily ingestion + monthly features pipeline:
 
 - Endpoint: `POST /pipeline/daily-ingestion`
 - Endpoint: `POST /pipeline/daily-full?force={bool}&trigger_source={manual|scheduler|api}`
+- Endpoint: `PUT /pipeline/manual-refresh` (manual refresh for frontend button)
 - Endpoint: `GET /pipeline/daily-full/latest`
 - Script: `python scripts/run_daily_ingestion.py`
 - Script: `python scripts/run_daily_full.py`
@@ -101,7 +102,7 @@ Daily ingestion + monthly features pipeline:
   - `public.farm_monthly_features`
   - `public.farm_daily_full_runs`
 
-Seasonal forecast + horizon features pipeline (6/12 months):
+Seasonal forecast + horizon features pipeline (30 days):
 
 - Endpoint: `POST /pipeline/seasonal-forecast`
 - Endpoint: `GET /pipeline/horizon-features?latitude={lat}&longitude={lon}`

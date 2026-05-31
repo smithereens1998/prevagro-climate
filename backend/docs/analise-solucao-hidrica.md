@@ -6,7 +6,7 @@ Sim, com os dados que estamos coletando hoje ja conseguimos construir uma soluca
 
 - detectar risco de estresse hidrico;
 - priorizar irrigacao;
-- antecipar risco para 6 e 12 meses;
+- antecipar risco para os proximos 30 dias;
 - transformar dado tecnico em plano de acao (via LLM).
 
 Ao mesmo tempo, ainda existem limitacoes de maturidade da base para previsao hidrica de alta confianca no longo prazo.
@@ -31,8 +31,7 @@ Indicadores encontrados:
   - `avg_soil_moisture`: 0.032
   - `avg_temp_celsius`: 31.21
 - `farm_horizon_prediction_features`:
-  - 6 meses: `projected_total_precip_mm`: 1.520, `projected_dry_days_ratio`: 1.0000, `water_stress_score`: 0.9949
-  - 12 meses: `projected_total_precip_mm`: 4.580, `projected_dry_days_ratio`: 0.9972, `water_stress_score`: 0.9831
+  - 30 dias: `projected_total_precip_mm`: 0.000, `projected_dry_days_ratio`: 1.0000, `water_stress_score`: 1.0000
 
 Interpretacao direta: o sistema esta identificando um cenario de seca severa com risco hidrico muito alto.
 
@@ -71,7 +70,7 @@ Antes: planejamento somente de curtissimo prazo.
 Agora:
 
 - previsao sazonal externa integrada;
-- features de horizonte 6m e 12m;
+- features de horizonte de 30 dias;
 - historico para dashboards (`/pipeline/horizon-features/history`).
 
 Impacto: possibilidade de planejamento hidrico com antecedencia (insumo, irrigacao, estrategia de cultura).
@@ -107,7 +106,7 @@ Com o que temos hoje, a plataforma ja entrega uma solucao hidrica util para oper
 - monitoramento continuo;
 - deteccao de risco;
 - recomendacao acionavel;
-- previsao de risco para 6 e 12 meses em formato de cenario.
+- previsao de risco para 30 dias em formato de cenario.
 
 Ou seja, ja estamos resolvendo o problema de "tomada de decisao sem dado hidrico".
 

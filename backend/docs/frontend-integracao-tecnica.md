@@ -7,7 +7,7 @@ Este guia documenta 100% das APIs backend disponiveis para integracao do fronten
 - monitoramento agro (clima/solo/satelite/poligonos);
 - persistencia de coordenadas e analises;
 - pipelines de ingestao e previsao sazonal;
-- features preditivas de 6 e 12 meses;
+- features preditivas para estimativa de 30 dias;
 - analise com LLM e historico de previsoes.
 
 ## Base da API
@@ -231,7 +231,7 @@ Retorno esperado:
 Executa integracao de previsao sazonal externa (Open-Meteo Climate):
 
 - grava diario em `farm_seasonal_forecasts`;
-- gera features de 6 e 12 meses em `farm_horizon_prediction_features`.
+- gera features preditivas de 30 dias em `farm_horizon_prediction_features`.
 
 ### `POST /pipeline/daily-full` (recomendado para producao)
 
@@ -261,6 +261,36 @@ Notas:
 - deve ser idempotente por dia/usuario/coordenada para evitar duplicidade operacional;
 - em caso de falha parcial, retornar status por etapa.
 
+### `PUT /pipeline/manual-refresh` (recomendado para botao "Atualizar agora")
+
+Objetivo: permitir refresh manual imediato pelo frontend sem depender do horario do job diario.
+
+Comportamento:
+
+- executa o mesmo fluxo completo (`daily-ingestion` + `seasonal-forecast` + `llm/predictions`);
+- força a reexecucao no mesmo dia (`force=true` internamente), mesmo se ja houve sucesso hoje;
+- registra o gatilho como `frontend_manual_refresh` para observabilidade.
+
+Resposta tipica:
+
+```json
+{
+  "status": "success",
+  "run_id": 20,
+  "executed_at": "2026-05-31T04:40:00+00:00",
+  "user_id": 1,
+  "latitude": 18.95,
+  "longitude": 46.99,
+  "duration_ms": 91500,
+  "steps": {
+    "daily_ingestion": { "status": "success", "attempts_used": 1 },
+    "seasonal_forecast": { "status": "success", "attempts_used": 1 },
+    "llm_prediction": { "status": "success", "attempts_used": 1 }
+  },
+  "prediction_id": 12
+}
+```
+
 ### `GET /pipeline/daily-full/latest`
 
 - Retorna ultima execucao do orquestrador diario.
@@ -289,7 +319,7 @@ Resposta tipica:
 
 ### `GET /pipeline/horizon-features?latitude={lat}&longitude={lon}`
 
-- Retorna snapshot mais recente de features 6m e 12m.
+- Retorna snapshot mais recente das features de 30 dias.
 - Se coordenada nao for enviada, usa coordenada padrao do usuario.
 
 Retorno simplificado:
@@ -300,8 +330,7 @@ Retorno simplificado:
   "latitude": 18.95,
   "longitude": 46.99,
   "features": {
-    "6m": { "heat_risk_score": 0.688, "water_stress_score": 0.9949 },
-    "12m": { "heat_risk_score": 0.3414, "water_stress_score": 0.9831 }
+    "30d": { "heat_risk_score": 0.688, "water_stress_score": 0.9949 }
   }
 }
 ```
@@ -311,7 +340,8 @@ Retorno simplificado:
 - Retorna serie historica para graficos de evolucao.
 - Campos por ponto:
   - `reference_date`
-  - `horizon_months` (6/12)
+  - `horizon_months` (atual: `1`, equivalente a 30 dias)
+  - `horizon_days` (`30`)
   - `projected_avg_temp_c`
   - `projected_total_precip_mm`
   - `projected_dry_days_ratio`
@@ -338,7 +368,7 @@ Prefixo: `/llm`
 
 ### `POST /llm/predictions?latitude={lat}&longitude={lon}&limit={n}`
 
-- Le dados monitorados + features de horizonte 6/12 meses;
+- Le dados monitorados + features de horizonte de 30 dias;
 - chama Gemini;
 - retorna analise estruturada;
 - persiste em `farm_ai_predictions`.
@@ -404,10 +434,19 @@ Uso recomendado:
 
 Fluxo recomendado (producao):
 
-1. `POST /pipeline/daily-full`
+1. `POST /pipeline/daily-full` (agendamento automatico 1x/dia)
 2. `GET /pipeline/horizon-features`
 3. `GET /pipeline/horizon-features/history`
 4. consumir ultimo `prediction_id` para painel de insights
+
+Fluxo recomendado (botao no frontend):
+
+1. `PUT /pipeline/manual-refresh`
+2. desabilitar botao enquanto `status=running` no cliente
+3. ao concluir com `status=success`, recarregar:
+   - `GET /pipeline/horizon-features`
+   - `GET /pipeline/horizon-features/history`
+   - `GET /pipeline/daily-full/latest`
 
 Fallback (se `daily-full` ainda nao estiver ativo):
 
@@ -429,7 +468,7 @@ Fallback (se `daily-full` ainda nao estiver ativo):
 - `farm_monitoring_records`: observacoes de clima/solo/satelite/poligono
 - `farm_monthly_features`: agregacao mensal
 - `farm_seasonal_forecasts`: previsao sazonal diaria externa
-- `farm_horizon_prediction_features`: features 6m/12m
+- `farm_horizon_prediction_features`: features de 30 dias
 - `farm_ai_predictions`: historico de analises LLM
 - `farm_ingestion_runs`: execucoes do pipeline diario
 
@@ -457,6 +496,7 @@ Fallback (se `daily-full` ainda nao estiver ativo):
 - [ ] integrar CRUD de coordenadas
 - [ ] integrar mapa com helper `agromonitoring-map.ts`
 - [ ] integrar pipeline diario
+- [ ] integrar botao "Atualizar agora" com `PUT /pipeline/manual-refresh`
 - [ ] integrar pipeline sazonal
 - [ ] integrar `daily-full` (quando publicado)
 - [ ] integrar `horizon-features` e `history`

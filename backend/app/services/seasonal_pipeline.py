@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from statistics import mean
 from typing import Any
 
@@ -15,6 +15,8 @@ settings = get_settings()
 DEFAULT_LATITUDE = 18.9439
 DEFAULT_LONGITUDE = 46.9925
 SOURCE_NAME = "open-meteo-climate"
+TARGET_HORIZON_DAYS = 30
+TARGET_HORIZON_MONTHS = 1
 
 
 def _get_default_user_id() -> int:
@@ -301,7 +303,7 @@ async def run_seasonal_pipeline(*, user_id: int | None = None) -> dict[str, Any]
     latitude, longitude = _resolve_coordinate(resolved_user_id)
 
     start_date = date.today()
-    end_date = date(start_date.year + 1, start_date.month, start_date.day)
+    end_date = start_date + timedelta(days=TARGET_HORIZON_DAYS)
 
     client = SeasonalForecastClient()
     payload = await client.fetch_daily_forecast(
@@ -319,30 +321,17 @@ async def run_seasonal_pipeline(*, user_id: int | None = None) -> dict[str, Any]
         payload=payload,
     )
 
-    feature_6m = _compute_horizon_features(
+    feature_30d = _compute_horizon_features(
         user_id=resolved_user_id,
         latitude=latitude,
         longitude=longitude,
-        horizon_months=6,
+        horizon_months=TARGET_HORIZON_MONTHS,
     )
     _save_horizon_features(
         user_id=resolved_user_id,
         latitude=latitude,
         longitude=longitude,
-        feature_data=feature_6m,
-    )
-
-    feature_12m = _compute_horizon_features(
-        user_id=resolved_user_id,
-        latitude=latitude,
-        longitude=longitude,
-        horizon_months=12,
-    )
-    _save_horizon_features(
-        user_id=resolved_user_id,
-        latitude=latitude,
-        longitude=longitude,
-        feature_data=feature_12m,
+        feature_data=feature_30d,
     )
 
     return {
@@ -353,7 +342,7 @@ async def run_seasonal_pipeline(*, user_id: int | None = None) -> dict[str, Any]
         "source_name": SOURCE_NAME,
         "model_name": settings.seasonal_forecast_model,
         "saved_forecast_rows": saved_rows,
-        "features": {"6m": feature_6m, "12m": feature_12m},
+        "features": {"30d": feature_30d},
     }
 
 
@@ -473,8 +462,9 @@ def get_latest_horizon_features(
         WHERE user_id = :user_id
           AND latitude = :latitude
           AND longitude = :longitude
+          AND horizon_months = 1
         ORDER BY reference_date DESC, horizon_months ASC
-        LIMIT 2
+        LIMIT 1
         """
     )
 
@@ -490,7 +480,7 @@ def get_latest_horizon_features(
 
     features: dict[str, Any] = {}
     for row in rows:
-        horizon = f"{int(row['horizon_months'])}m"
+        horizon = "30d"
         features[horizon] = {
             "reference_date": row["reference_date"].isoformat(),
             "projected_avg_temp_c": float(row["projected_avg_temp_c"]) if row["projected_avg_temp_c"] is not None else None,
@@ -547,6 +537,7 @@ def get_horizon_features_history(
         WHERE user_id = :user_id
           AND latitude = :latitude
           AND longitude = :longitude
+          AND horizon_months = 1
         ORDER BY reference_date DESC, horizon_months ASC
         LIMIT :limit
         """
@@ -568,6 +559,7 @@ def get_horizon_features_history(
         history.append(
             {
                 "reference_date": row["reference_date"].isoformat(),
+                "horizon_days": 30,
                 "horizon_months": int(row["horizon_months"]),
                 "projected_avg_temp_c": float(row["projected_avg_temp_c"])
                 if row["projected_avg_temp_c"] is not None

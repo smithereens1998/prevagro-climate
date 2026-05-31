@@ -23,6 +23,11 @@ async def run_pipeline_daily_full(
     return await run_daily_full(force=force, trigger_source=trigger_source)
 
 
+@router.put("/manual-refresh")
+async def run_pipeline_manual_refresh() -> dict[str, Any]:
+    return await run_daily_full(force=True, trigger_source="frontend_manual_refresh")
+
+
 @router.get("/daily-full/latest")
 def get_pipeline_daily_full_latest() -> dict[str, Any]:
     return get_latest_daily_full_run()
