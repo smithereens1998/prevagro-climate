@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSidebarLayout } from "@/components/layout/sidebar-context";
+import { FarmSelector } from "@/components/farm/FarmSelector";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getSessionInitials } from "@/lib/auth/session";
 
@@ -39,11 +40,7 @@ export function Header() {
       </Button>
 
       <div className="flex items-center gap-2">
-        <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground hover:border-primary/40 transition-colors">
-          <span className="h-2 w-2 rounded-full bg-primary" />
-          Fazenda São João
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </button>
+        <FarmSelector />
         <button className="hidden items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:flex">
           <Calendar className="h-4 w-4" />
           Últimos 30 dias

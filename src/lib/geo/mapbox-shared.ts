@@ -227,3 +227,116 @@ export const bindMapboxResize = (container: HTMLElement, getMap: () => unknown) 
     observer.disconnect();
   };
 };
+
+export type MapGeoJsonFeature = {
+  type: "Feature";
+  properties?: Record<string, unknown>;
+  geometry: { type: string; coordinates: unknown };
+};
+
+export const syncMapboxFeature = (
+  map: any,
+  feature: MapGeoJsonFeature | null,
+  opts?: { fillColor?: string; fillOpacity?: number; lineColor?: string },
+) => {
+  if (!feature) return;
+
+  const fillColor = opts?.fillColor ?? "#7CEC52";
+  const fillOpacity = opts?.fillOpacity ?? 0.35;
+  const lineColor = opts?.lineColor ?? fillColor;
+
+  if (!map.getSource(PERIMETER_SOURCE)) {
+    map.addSource(PERIMETER_SOURCE, { type: "geojson", data: feature });
+  } else {
+    map.getSource(PERIMETER_SOURCE).setData(feature);
+  }
+
+  if (!map.getLayer(PERIMETER_FILL)) {
+    map.addLayer({
+      id: PERIMETER_FILL,
+      type: "fill",
+      source: PERIMETER_SOURCE,
+      paint: {
+        "fill-color": fillColor,
+        "fill-opacity": fillOpacity,
+      },
+    });
+  } else {
+    map.setPaintProperty(PERIMETER_FILL, "fill-color", fillColor);
+    map.setPaintProperty(PERIMETER_FILL, "fill-opacity", fillOpacity);
+  }
+
+  if (!map.getLayer(PERIMETER_GLOW)) {
+    map.addLayer({
+      id: PERIMETER_GLOW,
+      type: "line",
+      source: PERIMETER_SOURCE,
+      paint: {
+        "line-color": "#ffffff",
+        "line-width": 5,
+        "line-opacity": 0.55,
+      },
+    });
+  }
+
+  if (!map.getLayer(PERIMETER_LINE)) {
+    map.addLayer({
+      id: PERIMETER_LINE,
+      type: "line",
+      source: PERIMETER_SOURCE,
+      paint: {
+        "line-color": lineColor,
+        "line-width": 2.5,
+        "line-opacity": 1,
+      },
+    });
+  } else {
+    map.setPaintProperty(PERIMETER_LINE, "line-color", lineColor);
+  }
+
+  for (const id of [PERIMETER_FILL, PERIMETER_GLOW, PERIMETER_LINE]) {
+    if (map.getLayer(id)) map.moveLayer(id);
+  }
+};
+
+export const defaultMapViewFromBounds = (
+  bounds: [[number, number], [number, number]],
+): { center: [number, number]; zoom: number; bearing: number; pitch: number } => {
+  const [[minLon, minLat], [maxLon, maxLat]] = bounds;
+  return {
+    center: [(minLon + maxLon) / 2, (minLat + maxLat) / 2],
+    zoom: 11.2,
+    bearing: -14,
+    pitch: 0,
+  };
+};
+
+export const bindFeaturePopup = (
+  map: any,
+  mapboxgl: any,
+  html: string,
+  layerId = PERIMETER_FILL,
+) => {
+  if (map.__prevagroPopupBound) return;
+  map.__prevagroPopupBound = true;
+
+  map.on("click", layerId, (e: { lngLat: { lng: number; lat: number } }) => {
+    new mapboxgl.Popup({
+      closeButton: true,
+      closeOnClick: true,
+      maxWidth: "300px",
+      className: "prevagro-map-popup",
+      offset: 12,
+    })
+      .setLngLat(e.lngLat)
+      .setHTML(html)
+      .addTo(map);
+  });
+
+  map.on("mouseenter", layerId, () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", layerId, () => {
+    map.getCanvas().style.cursor = "";
+  });
+};

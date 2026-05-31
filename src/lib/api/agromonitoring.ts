@@ -1,6 +1,6 @@
 import { apiRequest } from "./client";
 import type { AgroMonitoringPolygon } from "@/lib/agromonitoring-map";
-import type { AgroSoilResponse, AgroWeatherResponse } from "./types";
+import type { AgroSoilResponse, AgroWeatherResponse, SatelliteHistoryItem } from "./types";
 
 export const fetchAgroPolygons = () =>
   apiRequest<AgroMonitoringPolygon[]>("/agromonitoring/polygons");
@@ -19,7 +19,7 @@ export const fetchAgroSoil = (latitude: number, longitude: number) =>
   });
 
 export const fetchSatelliteHistory = (params: { polygonId: string; start: number; end: number }) =>
-  apiRequest<unknown[]>("/agromonitoring/satellite/history", {
+  apiRequest<SatelliteHistoryItem[]>("/agromonitoring/satellite/history", {
     params: {
       polygonId: params.polygonId,
       start: params.start,

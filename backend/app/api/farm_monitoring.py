@@ -10,6 +10,7 @@ from app.integrations.agromonitoring import AgroMonitoringClient
 from app.services.farm_monitoring import (
     add_coordinate,
     delete_coordinate,
+    get_latest_farm_identity,
     list_coordinates,
     update_coordinate,
     upsert_polygon_shape,
@@ -22,6 +23,37 @@ router = APIRouter(prefix="/farm-monitoring", tags=["farm-monitoring"])
 client = AgroMonitoringClient()
 settings = get_settings()
 DEFAULT_POLYGON_ID = "6a1aec4cb5c0520008ea2893"
+GENERIC_COORDINATE_NAMES = frozenset(
+    {
+        "default polygon sync",
+        "fazenda",
+        "nova fazenda",
+        "minha fazenda",
+        "polygon sync",
+    }
+)
+
+
+def _is_generic_coordinate_name(name: str) -> bool:
+    normalized = name.strip().lower()
+    return not normalized or normalized in GENERIC_COORDINATE_NAMES
+
+
+def _resolve_coordinate_display_name(*, requested_name: str, polygon_data: dict[str, Any] | None) -> str:
+    cleaned = requested_name.strip()
+    if cleaned and not _is_generic_coordinate_name(cleaned):
+        return cleaned
+
+    configured_name = settings.agromonitoring_farm_name.strip()
+    if configured_name:
+        return configured_name
+
+    if isinstance(polygon_data, dict):
+        polygon_name = str(polygon_data.get("name") or "").strip()
+        if polygon_name:
+            return polygon_name
+
+    return cleaned or "Minha fazenda"
 
 
 class CoordinatePayload(BaseModel):
@@ -143,16 +175,40 @@ def get_coordinates() -> list[dict[str, Any]]:
     return list_coordinates()
 
 
+@router.get("/latest")
+def get_latest_farm_monitoring_identity() -> dict[str, Any]:
+    latest = get_latest_farm_identity()
+    if not latest:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No farm monitoring data found")
+    return latest
+
+
 @router.post("/coordinates", status_code=status.HTTP_201_CREATED)
 async def post_coordinate(
     payload: CoordinatePayload,
     polygon_id: str | None = Query(None, alias="polygonId"),
 ) -> dict[str, Any]:
-    coordinate = add_coordinate(name=payload.name, latitude=payload.latitude, longitude=payload.longitude)
     polygon_sync = await _sync_polygon_after_coordinate_change(
         latitude=payload.latitude,
         longitude=payload.longitude,
         polygon_id=polygon_id,
+    )
+
+    polygon_data: dict[str, Any] | None = None
+    synced_polygon_id = polygon_sync.get("polygon_id")
+    if polygon_sync.get("synced") and isinstance(synced_polygon_id, str):
+        polygon_data = await client.get_polygon(synced_polygon_id)
+
+    resolved_name = _resolve_coordinate_display_name(
+        requested_name=payload.name,
+        polygon_data=polygon_data,
+    )
+    stored_polygon_id = synced_polygon_id if polygon_sync.get("synced") else polygon_id
+    coordinate = add_coordinate(
+        name=resolved_name,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        polygon_id=stored_polygon_id,
     )
     return {"coordinate": coordinate, "polygon_sync": polygon_sync}
 
@@ -163,19 +219,21 @@ async def put_coordinate(
     payload: CoordinatePayload,
     polygon_id: str | None = Query(None, alias="polygonId"),
 ) -> dict[str, Any]:
-    updated = update_coordinate(
-        coordinate_id=coordinate_id,
-        name=payload.name,
-        latitude=payload.latitude,
-        longitude=payload.longitude,
-    )
-    if not updated:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coordinate not found")
     polygon_sync = await _sync_polygon_after_coordinate_change(
         latitude=payload.latitude,
         longitude=payload.longitude,
         polygon_id=polygon_id,
     )
+    synced_polygon_id = polygon_sync.get("polygon_id") if polygon_sync.get("synced") else polygon_id
+    updated = update_coordinate(
+        coordinate_id=coordinate_id,
+        name=payload.name,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        polygon_id=synced_polygon_id if isinstance(synced_polygon_id, str) else None,
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coordinate not found")
     return {"coordinate": updated, "polygon_sync": polygon_sync}
 
 

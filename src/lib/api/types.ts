@@ -6,8 +6,17 @@ export type FarmCoordinate = {
   name: string;
   latitude: number;
   longitude: number;
+  polygon_id?: string | null;
   created_at?: string;
   updated_at?: string;
+};
+
+export type FarmLatestIdentity = {
+  farm_name: string;
+  farm_location: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  observed_at: string;
 };
 
 export type CoordinatePayload = {
@@ -121,6 +130,14 @@ export type AgroSoilResponse = {
   t0?: number;
   t10?: number;
   temperature_celsius?: { t0_celsius?: number; t10_celsius?: number };
+};
+
+export type SatelliteHistoryItem = {
+  dt?: number;
+  date?: string;
+  stats?: Record<string, number | string | null>;
+  image?: { ndvi?: number; evi?: number };
+  data?: Record<string, unknown>;
 };
 
 export type CoordinateQuery = {

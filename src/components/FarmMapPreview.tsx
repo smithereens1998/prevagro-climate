@@ -2,37 +2,49 @@
 import { useEffect, useRef, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Link } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { farmBounds, makeHeatGeoJSON, getRiskScore } from "@/lib/geo/farm-data";
 import { BASEMAP_STYLES } from "@/lib/geo/map-layers";
-import { heatmapColorExpression, RISK_RANGE } from "@/lib/geo/map-colors";
 import {
   addMapControls,
-  bindFarmPerimeterPopup,
+  bindFeaturePopup,
   bindMapboxResize,
   bindStyleImageFallback,
   defaultMapView,
+  defaultMapViewFromBounds,
   MAPBOX_TOKEN,
-  paddedMaxBounds,
-  syncMapboxPerimeter,
+  syncMapboxFeature,
 } from "@/lib/geo/mapbox-shared";
+import { riskScoreToFillColor, type GeoJsonFeature } from "@/lib/farm/polygon-utils";
 import { SatelliteMap } from "@/components/SatelliteMap";
-
-const PREVIEW_HEAT_SOURCE = "prevagro-preview-risk";
-const PREVIEW_HEAT_LAYER = "prevagro-preview-risk-heat";
 
 type FarmMapPreviewProps = {
   className?: string;
+  riskScore?: number | null;
+  feature?: GeoJsonFeature | null;
+  bounds?: [[number, number], [number, number]] | null;
+  maxBounds?: [[number, number], [number, number]] | null;
+  farmLabel?: string;
+  areaHa?: number | null;
+  isLoading?: boolean;
 };
 
-/** Mapbox GL nativo — preview na visão geral (satélite + risco + perímetro). */
-export const FarmMapPreview = ({ className }: FarmMapPreviewProps) => {
+export const FarmMapPreview = ({
+  className,
+  riskScore = null,
+  feature = null,
+  bounds = null,
+  maxBounds = null,
+  farmLabel = "Fazenda",
+  areaHa = null,
+  isLoading = false,
+}: FarmMapPreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [failed, setFailed] = useState(!MAPBOX_TOKEN);
 
   useEffect(() => {
-    if (!MAPBOX_TOKEN || !containerRef.current) return;
+    if (!MAPBOX_TOKEN || !containerRef.current || !feature || !bounds) return;
 
     let cancelled = false;
 
@@ -42,13 +54,13 @@ export const FarmMapPreview = ({ className }: FarmMapPreviewProps) => {
         if (cancelled || !containerRef.current) return;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
-        const view = defaultMapView();
+        const view = defaultMapViewFromBounds(bounds);
 
         const map = new mapboxgl.Map({
           container: containerRef.current,
           style: BASEMAP_STYLES.satellite,
           ...view,
-          maxBounds: paddedMaxBounds(),
+          maxBounds: maxBounds ?? bounds,
           antialias: true,
           attributionControl: true,
           cooperativeGestures: true,
@@ -60,28 +72,31 @@ export const FarmMapPreview = ({ className }: FarmMapPreviewProps) => {
         map.on("load", () => {
           if (cancelled) return;
 
-          map.addSource(PREVIEW_HEAT_SOURCE, {
-            type: "geojson",
-            data: makeHeatGeoJSON("riscoScore"),
-          });
-          map.addLayer({
-            id: PREVIEW_HEAT_LAYER,
-            type: "heatmap",
-            source: PREVIEW_HEAT_SOURCE,
-            paint: {
-              "heatmap-weight": ["get", "weight"],
-              "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.85, 13, 1.35],
-              "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 26, 13, 44],
-              "heatmap-opacity": 0.78,
-              "heatmap-color": heatmapColorExpression(RISK_RANGE),
-            },
+          const fillColor = riskScoreToFillColor(riskScore);
+          syncMapboxFeature(map, feature, {
+            fillColor,
+            fillOpacity: 0.42,
+            lineColor: fillColor,
           });
 
-          syncMapboxPerimeter(map, false);
-          bindFarmPerimeterPopup(map, mapboxgl);
+          const areaLabel = areaHa != null ? `${areaHa} ha` : "—";
+          bindFeaturePopup(
+            map,
+            mapboxgl,
+            `
+            <div class="prevagro-popup-body">
+              <p class="prevagro-popup-title">${farmLabel}</p>
+              <p class="prevagro-popup-sub">${areaLabel}</p>
+              <hr class="prevagro-popup-divider" />
+              <dl class="prevagro-popup-metrics">
+                <div><dt>Risco</dt><dd>${riskScore ?? "—"}${riskScore != null ? "/100" : ""}</dd></div>
+              </dl>
+            </div>
+          `,
+          );
+
           addMapControls(map, mapboxgl, { scale: true, navigation: false });
-
-          map.fitBounds(farmBounds(), { padding: 48, duration: 0, maxZoom: 13 });
+          map.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 13 });
           setFailed(false);
         });
       } catch {
@@ -94,7 +109,7 @@ export const FarmMapPreview = ({ className }: FarmMapPreviewProps) => {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [feature, bounds, maxBounds, riskScore, farmLabel, areaHa]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -102,7 +117,20 @@ export const FarmMapPreview = ({ className }: FarmMapPreviewProps) => {
     return bindMapboxResize(container, () => mapRef.current);
   }, [failed]);
 
-  if (failed) {
+  if (isLoading) {
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center rounded-lg border border-border bg-surface/40",
+          className,
+        )}
+      >
+        <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Carregando mapa" />
+      </div>
+    );
+  }
+
+  if (failed || !MAPBOX_TOKEN || !feature || !bounds) {
     return <SatelliteMap className={className} compact />;
   }
 
@@ -114,7 +142,9 @@ export const FarmMapPreview = ({ className }: FarmMapPreviewProps) => {
         <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs">
           <span className="text-muted-foreground">Risco</span>
           <span className="h-2 w-16 rounded-full bg-gradient-to-r from-primary via-warning to-destructive" />
-          <span className="font-medium text-foreground">{getRiskScore()}/100</span>
+          <span className="font-medium text-foreground">
+            {riskScore != null ? `${riskScore}/100` : "—"}
+          </span>
         </div>
         <Link
           to="/mapa"

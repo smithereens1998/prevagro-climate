@@ -34,17 +34,22 @@ import {
 
 import {
   addMapControls,
+  bindFeaturePopup,
   bindFarmPerimeterPopup,
   bindMapboxResize,
   bindStyleImageFallback,
   clearTerrain,
   defaultMapView,
+  defaultMapViewFromBounds,
   MAPBOX_TOKEN,
   paddedMaxBounds,
   runWhenMapReady,
   setupTerrain,
+  syncMapboxFeature,
   syncMapboxPerimeter,
+  type MapGeoJsonFeature,
 } from "@/lib/geo/mapbox-shared";
+import { riskScoreToFillColor } from "@/lib/farm/polygon-utils";
 
 type GeoMapProps = {
   className?: string;
@@ -54,6 +59,13 @@ type GeoMapProps = {
   layerOpacity: number;
   is3D: boolean;
   onToggle3D: () => void;
+  perimeterFeature?: MapGeoJsonFeature | null;
+  mapBounds?: [[number, number], [number, number]] | null;
+  mapMaxBounds?: [[number, number], [number, number]] | null;
+  centroid?: [number, number] | null;
+  farmLabel?: string;
+  areaHa?: number | null;
+  riskScore?: number | null;
 };
 
 const isLayerId = (id: string): id is LayerId => LAYER_IDS.includes(id as LayerId);
@@ -100,6 +112,7 @@ const syncMapboxDataLayers = (
   vizMode: VizMode,
   opacity: number,
   is3D: boolean,
+  perimeterGeoJson: typeof FARM_PERIMETER,
 ) => {
   removeMapboxDataLayers(map);
 
@@ -128,7 +141,7 @@ const syncMapboxDataLayers = (
     if (!is3D) continue;
 
     if (kind === "columns" && meta.columnValue) {
-      map.addSource(sourceId, { type: "geojson", data: FARM_PERIMETER });
+      map.addSource(sourceId, { type: "geojson", data: perimeterGeoJson });
       map.addLayer({
         id: `${sourceId}-extrusion`,
         type: "fill-extrusion",
@@ -144,7 +157,7 @@ const syncMapboxDataLayers = (
     }
 
     if (kind === "geometry") {
-      map.addSource(sourceId, { type: "geojson", data: FARM_PERIMETER });
+      map.addSource(sourceId, { type: "geojson", data: perimeterGeoJson });
       map.addLayer({
         id: `${sourceId}-fill`,
         type: "fill",
@@ -166,6 +179,13 @@ export function GeoMap({
   layerOpacity,
   is3D,
   onToggle3D,
+  perimeterFeature = null,
+  mapBounds = null,
+  mapMaxBounds = null,
+  centroid = null,
+  farmLabel = "Fazenda",
+  areaHa = null,
+  riskScore = null,
 }: GeoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -187,6 +207,45 @@ export function GeoMap({
   layerOpacityRef.current = layerOpacity;
 
   const legends = getLegendsForLayers(activeLayers);
+  const perimeterData = perimeterFeature ?? FARM_PERIMETER;
+  const fitBoundsData = mapBounds ?? farmBounds();
+  const maxBoundsData = mapMaxBounds ?? paddedMaxBounds();
+  const mapCenter = centroid ?? perimeterCentroid();
+
+  const syncPerimeter = (map: any, is3DView = false) => {
+    if (perimeterFeature) {
+      const fillColor = riskScoreToFillColor(riskScore);
+      syncMapboxFeature(map, perimeterFeature, {
+        fillColor,
+        fillOpacity: 0,
+        lineColor: fillColor,
+      });
+      return;
+    }
+    syncMapboxPerimeter(map, is3DView);
+  };
+
+  const bindPerimeterPopup = (map: any, mapboxgl: any) => {
+    if (perimeterFeature) {
+      const areaLabel = areaHa != null ? `${areaHa} ha` : "—";
+      bindFeaturePopup(
+        map,
+        mapboxgl,
+        `
+        <div class="prevagro-popup-body">
+          <p class="prevagro-popup-title">${farmLabel}</p>
+          <p class="prevagro-popup-sub">${areaLabel}</p>
+          <hr class="prevagro-popup-divider" />
+          <dl class="prevagro-popup-metrics">
+            <div><dt>Risco</dt><dd>${riskScore ?? "—"}${riskScore != null ? "/100" : ""}</dd></div>
+          </dl>
+        </div>
+      `,
+      );
+      return;
+    }
+    bindFarmPerimeterPopup(map, mapboxgl);
+  };
 
   const attachDeckOverlay = (map: any) => {
     const MapboxOverlay = MapboxOverlayRef.current;
@@ -224,12 +283,12 @@ export function GeoMap({
         mapboxglRef.current = mapboxgl;
 
         mapboxgl.accessToken = MAPBOX_TOKEN;
-        const view = defaultMapView();
+        const view = mapBounds ? defaultMapViewFromBounds(mapBounds) : defaultMapView();
         const map = new mapboxgl.Map({
           container: containerRef.current,
           style: BASEMAP_STYLES[basemap],
           ...view,
-          maxBounds: paddedMaxBounds(),
+          maxBounds: maxBoundsData,
           antialias: true,
           cooperativeGestures: true,
         });
@@ -239,11 +298,11 @@ export function GeoMap({
 
         map.on("load", () => {
           if (cancelled) return;
-          bindFarmPerimeterPopup(map, mapboxgl);
+          bindPerimeterPopup(map, mapboxgl);
           addMapControls(map, mapboxgl, { scale: true, navigation: false });
-          syncMapboxPerimeter(map, is3D);
+          syncPerimeter(map, is3D);
           attachDeckOverlay(map);
-          map.fitBounds(farmBounds(), { padding: 64, duration: 0 });
+          map.fitBounds(fitBoundsData, { padding: 64, duration: 0 });
           setReady(true);
         });
       } catch (err) {
@@ -277,9 +336,9 @@ export function GeoMap({
       bindStyleImageFallback(map);
       map.__prevagroPopupBound = false;
       map.__prevagroControlsBound = false;
-      bindFarmPerimeterPopup(map, mapboxglRef.current);
+      bindPerimeterPopup(map, mapboxglRef.current);
       addMapControls(map, mapboxglRef.current, { scale: true, navigation: false });
-      syncMapboxPerimeter(map, is3DRef.current);
+      syncPerimeter(map, is3DRef.current);
       attachDeckOverlay(map);
       if (is3DRef.current) setupTerrain(map);
       syncMapboxDataLayers(
@@ -288,9 +347,10 @@ export function GeoMap({
         vizModeRef.current,
         layerOpacityRef.current,
         is3DRef.current,
+        perimeterData,
       );
-      syncMapboxPerimeter(map, is3DRef.current);
-      map.fitBounds(farmBounds(), {
+      syncPerimeter(map, is3DRef.current);
+      map.fitBounds(fitBoundsData, {
         padding: 64,
         duration: 400,
         pitch: is3DRef.current ? PITCH_3D : 0,
@@ -307,7 +367,7 @@ export function GeoMap({
       const { GeoJsonLayer, ColumnLayer } = libsRef.current;
       const layers: any[] = [];
       const alpha = layerOpacity;
-      const [cx, cy] = perimeterCentroid();
+      const [cx, cy] = mapCenter;
 
       if (!is3D) {
         for (const layerId of activeLayers.filter(isLayerId)) {
@@ -337,7 +397,7 @@ export function GeoMap({
           layers.push(
             new GeoJsonLayer({
               id: `geom-${layerId}`,
-              data: FARM_PERIMETER,
+              data: perimeterData,
               filled: true,
               stroked: false,
               opacity: alpha,
@@ -349,8 +409,8 @@ export function GeoMap({
       }
 
       overlayRef.current.setProps({ layers });
-      syncMapboxDataLayers(map, activeLayers, vizMode, layerOpacity, is3D);
-      syncMapboxPerimeter(map, is3D);
+      syncMapboxDataLayers(map, activeLayers, vizMode, layerOpacity, is3D, perimeterData);
+      syncPerimeter(map, is3D);
     };
 
     if (map?.isStyleLoaded()) {
@@ -366,15 +426,31 @@ export function GeoMap({
 
     runWhenMapReady(map, () => {
       apply3DView(map, is3D);
-      syncMapboxPerimeter(map, is3D);
+      syncPerimeter(map, is3D);
     });
   }, [is3D, ready]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !perimeterFeature) return;
+
+    runWhenMapReady(map, () => {
+      syncPerimeter(map, is3DRef.current);
+      bindPerimeterPopup(map, mapboxglRef.current);
+      map.fitBounds(fitBoundsData, {
+        padding: 64,
+        duration: 400,
+        pitch: is3DRef.current ? PITCH_3D : 0,
+        bearing: BEARING,
+      });
+    });
+  }, [ready, perimeterFeature, fitBoundsData, riskScore, farmLabel, areaHa]);
 
   const handleZoom = (delta: number) => () =>
     mapRef.current?.zoomTo(mapRef.current.getZoom() + delta, { duration: 300 });
 
   const handleRecenter = () => {
-    mapRef.current?.fitBounds(farmBounds(), {
+    mapRef.current?.fitBounds(fitBoundsData, {
       padding: 64,
       duration: 800,
       pitch: is3DRef.current ? PITCH_3D : 0,

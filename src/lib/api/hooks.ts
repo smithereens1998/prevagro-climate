@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FARM_CENTER } from "@/lib/geo/farm-data";
-import { fetchAgroPolygons, fetchAgroSoil, fetchAgroWeather } from "./agromonitoring";
-import { fetchCoordinates } from "./farm-monitoring";
+import { useFarmLocation } from "@/lib/farm/farm-context";
+import { fetchAgroPolygons, fetchAgroSoil, fetchAgroWeather, fetchSatelliteHistory } from "./agromonitoring";
+import {
+  createCoordinate,
+  fetchCoordinates,
+  fetchLatestFarmIdentity,
+  updateCoordinate,
+} from "./farm-monitoring";
 import { fetchDbHealth, fetchHealth } from "./health";
 import { createLlmPrediction } from "./llm";
 import {
@@ -11,7 +16,7 @@ import {
 } from "./pipeline";
 import { apiQueryKeys } from "./query-keys";
 import { ApiError } from "./client";
-import type { CoordinateQuery, FarmCoordinate } from "./types";
+import type { CoordinatePayload, CoordinateQuery } from "./types";
 
 const STALE_MS = 5 * 60 * 1000;
 
@@ -47,27 +52,26 @@ export const useCoordinates = () =>
     retry: retryGet,
   });
 
-export const usePrimaryCoordinate = (): FarmCoordinate | null => {
-  const { data } = useCoordinates();
-  if (!data?.length) return null;
-  return data[0];
-};
-
-export const useFarmLocation = (): CoordinateQuery => {
-  const primary = usePrimaryCoordinate();
-  if (primary) {
-    return { latitude: primary.latitude, longitude: primary.longitude };
-  }
-  const [lon, lat] = FARM_CENTER;
-  return { latitude: lat, longitude: lon };
-};
+export const useLatestFarmIdentity = (enabled = true) =>
+  useQuery({
+    queryKey: apiQueryKeys.farmLatest,
+    queryFn: fetchLatestFarmIdentity,
+    enabled,
+    staleTime: STALE_MS,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 404) return false;
+      return retryGet(failureCount, error);
+    },
+  });
 
 export const useHorizonFeatures = (query?: CoordinateQuery) => {
   const location = useFarmLocation();
   const resolved = query ?? location;
+  const enabled = resolved.latitude != null && resolved.longitude != null;
   return useQuery({
     queryKey: apiQueryKeys.horizonFeatures(resolved),
     queryFn: () => fetchHorizonFeatures(resolved),
+    enabled,
     staleTime: STALE_MS,
     retry: retryGet,
   });
@@ -76,9 +80,11 @@ export const useHorizonFeatures = (query?: CoordinateQuery) => {
 export const useHorizonFeaturesHistory = (query?: CoordinateQuery & { limit?: number }) => {
   const location = useFarmLocation();
   const resolved = { ...location, ...query };
+  const enabled = resolved.latitude != null && resolved.longitude != null;
   return useQuery({
     queryKey: apiQueryKeys.horizonHistory(resolved),
     queryFn: () => fetchHorizonFeaturesHistory(resolved),
+    enabled,
     staleTime: STALE_MS,
     retry: retryGet,
   });
@@ -118,12 +124,59 @@ export const useAgroSoil = (latitude: number, longitude: number, enabled = true)
     retry: retryGet,
   });
 
+const SATELLITE_DAYS_DEFAULT = 90;
+
+export const useSatelliteHistory = (polygonId: string | null | undefined, days = SATELLITE_DAYS_DEFAULT) => {
+  const end = Math.floor(Date.now() / 1000);
+  const start = end - days * 24 * 60 * 60;
+
+  return useQuery({
+    queryKey: apiQueryKeys.satelliteHistory(polygonId ?? "", start, end),
+    queryFn: () => fetchSatelliteHistory({ polygonId: polygonId!, start, end }),
+    enabled: Boolean(polygonId),
+    staleTime: STALE_MS,
+    retry: retryGet,
+  });
+};
+
+export const useCreateCoordinateMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { payload: CoordinatePayload; polygonId?: string }) =>
+      createCoordinate(input.payload, input.polygonId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: apiQueryKeys.coordinates });
+      void queryClient.invalidateQueries({ queryKey: apiQueryKeys.farmLatest });
+    },
+  });
+};
+
+export const useUpdateCoordinateMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      coordinateId: number;
+      payload: CoordinatePayload;
+      polygonId?: string;
+    }) => updateCoordinate(input.coordinateId, input.payload, input.polygonId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: apiQueryKeys.coordinates });
+      void queryClient.invalidateQueries({ queryKey: apiQueryKeys.farmLatest });
+    },
+  });
+};
+
 export const useLlmPredictionMutation = () => {
   const queryClient = useQueryClient();
   const location = useFarmLocation();
 
   return useMutation({
-    mutationFn: () => createLlmPrediction({ ...location, limit: 20 }),
+    mutationFn: () => {
+      if (location.latitude == null || location.longitude == null) {
+        throw new Error("Selecione uma fazenda antes de gerar a análise");
+      }
+      return createLlmPrediction({ ...location, limit: 20 });
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(apiQueryKeys.llmPrediction(location), data);
     },
