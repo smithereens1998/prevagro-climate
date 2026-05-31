@@ -28,7 +28,7 @@ const kpiMeta: Record<
   { label: string; unit?: string; tone: OverviewKpi["tone"] }
 > = {
   risco: { label: "Risco Climático", unit: "/100", tone: "warning" },
-  ndvi: { label: "Estresse Hídrico (12m)", unit: "/100", tone: "primary" },
+  ndvi: { label: "Estresse Hídrico (30d)", unit: "/100", tone: "primary" },
   umidade: { label: "Umidade Relativa", unit: "%", tone: "primary" },
   temp: { label: "Temperatura Atual", unit: "°C", tone: "default" },
   solo: { label: "Umidade do Solo", unit: "%", tone: "default" },
@@ -40,9 +40,10 @@ export const buildOverviewKpisFromApi = (
   soil?: AgroSoilResponse,
 ): OverviewKpi[] => {
   const riskScore = horizonToRiskScore(horizon);
-  const water12 = horizon?.features?.["12m"]?.water_stress_score;
-  const waterScore =
-    water12 != null ? Math.round(water12 * 100) : null;
+  const water30 =
+    horizon?.features?.["30d"]?.water_stress_score ??
+    horizon?.features?.["12m"]?.water_stress_score;
+  const waterScore = water30 != null ? Math.round(water30 * 100) : null;
 
   const values: Record<OverviewKpiId, string> = {
     risco: riskScore != null ? String(riskScore) : "—",

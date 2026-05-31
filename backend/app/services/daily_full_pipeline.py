@@ -14,9 +14,9 @@ from app.services.data_pipeline import run_daily_ingestion
 from app.services.llm_predictions import generate_prediction
 from app.services.seasonal_pipeline import run_seasonal_pipeline
 
+from app.services.coordinate_utils import resolve_effective_coordinate
+
 settings = get_settings()
-DEFAULT_LATITUDE = 18.9439
-DEFAULT_LONGITUDE = 46.9925
 
 
 def _get_default_user_id() -> int:
@@ -29,20 +29,7 @@ def _get_default_user_id() -> int:
 
 
 def _resolve_coordinate(user_id: int) -> tuple[float, float]:
-    sql = text(
-        """
-        SELECT latitude, longitude
-        FROM public.farm_coordinates
-        WHERE user_id = :user_id
-        ORDER BY updated_at DESC
-        LIMIT 1
-        """
-    )
-    with engine.connect() as connection:
-        row = connection.execute(sql, {"user_id": user_id}).mappings().one_or_none()
-    if row:
-        return float(row["latitude"]), float(row["longitude"])
-    return DEFAULT_LATITUDE, DEFAULT_LONGITUDE
+    return resolve_effective_coordinate(user_id=user_id)
 
 
 def _serialize_summary(result: dict[str, Any]) -> dict[str, Any]:

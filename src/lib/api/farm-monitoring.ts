@@ -1,6 +1,6 @@
 import { ApiError, apiRequest } from "./client";
 import { normalizeFarmCoordinate, normalizeFarmLatestIdentity } from "./normalize";
-import type { CoordinatePayload, FarmCoordinate, FarmLatestIdentity } from "./types";
+import type { CoordinatePayload, CoordinateQuery, FarmCoordinate, FarmLatestIdentity, FarmMonitoringObservation } from "./types";
 
 export const fetchCoordinates = async () => {
   const rows = await apiRequest<FarmCoordinate[]>("/farm-monitoring/coordinates");
@@ -11,6 +11,22 @@ export const fetchLatestFarmIdentity = async (): Promise<FarmLatestIdentity | nu
   try {
     const row = await apiRequest<FarmLatestIdentity>("/farm-monitoring/latest");
     return normalizeFarmLatestIdentity(row);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+export const fetchLatestMonitoringObservation = async (query?: CoordinateQuery) => {
+  try {
+    return await apiRequest<FarmMonitoringObservation>("/farm-monitoring/observations/latest", {
+      params: {
+        latitude: query?.latitude,
+        longitude: query?.longitude,
+      },
+    });
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       return null;

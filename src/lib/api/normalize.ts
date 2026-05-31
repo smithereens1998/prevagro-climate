@@ -1,4 +1,4 @@
-import type { FarmCoordinate, FarmLatestIdentity } from "./types";
+import type { CoordinateQuery, FarmCoordinate, FarmLatestIdentity } from "./types";
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -9,22 +9,51 @@ const toNumber = (value: unknown): number => {
   return Number.NaN;
 };
 
-/** Postgres NUMERIC often serializes lat/lon as strings in JSON. */
-export const normalizeFarmCoordinate = (raw: FarmCoordinate): FarmCoordinate => ({
-  ...raw,
-  id: toNumber(raw.id),
-  user_id: toNumber(raw.user_id),
-  latitude: toNumber(raw.latitude),
-  longitude: toNumber(raw.longitude),
-  polygon_id: raw.polygon_id ?? null,
-});
+/** Corrige cadastro comum no Brasil (lat/lon positivos). */
+export const normalizeCoordinatePair = (latitude: number, longitude: number): CoordinateQuery => {
+  let lat = latitude;
+  let lon = longitude;
+  if (lat > 0 && lon > 0 && lat >= 5 && lat <= 35 && lon >= 30 && lon <= 75) {
+    lat = -Math.abs(lat);
+    lon = -Math.abs(lon);
+  }
+  return { latitude: lat, longitude: lon };
+};
 
-export const normalizeFarmLatestIdentity = (raw: FarmLatestIdentity): FarmLatestIdentity => ({
-  ...raw,
-  latitude: raw.latitude == null ? null : toNumber(raw.latitude),
-  longitude: raw.longitude == null ? null : toNumber(raw.longitude),
-  farm_location: raw.farm_location ?? null,
-});
+/** Postgres NUMERIC often serializes lat/lon as strings in JSON. */
+export const normalizeFarmCoordinate = (raw: FarmCoordinate): FarmCoordinate => {
+  const latitude = toNumber(raw.latitude);
+  const longitude = toNumber(raw.longitude);
+  const normalized = normalizeCoordinatePair(latitude, longitude);
+  return {
+    ...raw,
+    id: toNumber(raw.id),
+    user_id: toNumber(raw.user_id),
+    latitude: normalized.latitude ?? latitude,
+    longitude: normalized.longitude ?? longitude,
+    polygon_id: raw.polygon_id ?? null,
+  };
+};
+
+export const normalizeFarmLatestIdentity = (raw: FarmLatestIdentity): FarmLatestIdentity => {
+  const latitude = raw.latitude == null ? null : toNumber(raw.latitude);
+  const longitude = raw.longitude == null ? null : toNumber(raw.longitude);
+  if (latitude == null || longitude == null) {
+    return {
+      ...raw,
+      latitude,
+      longitude,
+      farm_location: raw.farm_location ?? null,
+    };
+  }
+  const normalized = normalizeCoordinatePair(latitude, longitude);
+  return {
+    ...raw,
+    latitude: normalized.latitude ?? latitude,
+    longitude: normalized.longitude ?? longitude,
+    farm_location: raw.farm_location ?? null,
+  };
+};
 
 const COORD_MATCH_EPSILON = 0.002;
 

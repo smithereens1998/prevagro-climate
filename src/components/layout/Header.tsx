@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Calendar, LogOut, PanelLeft, Search } from "lucide-react";
+import { Bell, Calendar, LogOut, PanelLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -41,11 +41,14 @@ export function Header() {
 
       <div className="flex items-center gap-2">
         <FarmSelector />
-        <button className="hidden items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:flex">
-          <Calendar className="h-4 w-4" />
-          Últimos 30 dias
-          <ChevronDown className="h-4 w-4" />
-        </button>
+        <div
+          className="hidden items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground md:flex"
+          title="Janela operacional da previsão climática exibida no painel"
+          aria-label="Previsão climática de 30 dias"
+        >
+          <Calendar className="h-4 w-4 shrink-0" aria-hidden />
+          <span>Previsão 30 dias</span>
+        </div>
       </div>
 
       <div className="ml-auto flex items-center gap-2">

@@ -5,6 +5,7 @@ import {
   createCoordinate,
   fetchCoordinates,
   fetchLatestFarmIdentity,
+  fetchLatestMonitoringObservation,
   updateCoordinate,
 } from "./farm-monitoring";
 import { fetchDbHealth, fetchHealth } from "./health";
@@ -14,6 +15,7 @@ import {
   fetchHorizonFeatures,
   fetchHorizonFeaturesHistory,
   fetchSeasonalForecastDaily,
+  runManualRefresh,
 } from "./pipeline";
 import { apiQueryKeys } from "./query-keys";
 import { ApiError } from "./client";
@@ -65,6 +67,22 @@ export const useLatestFarmIdentity = (enabled = true) =>
     },
   });
 
+export const useLatestMonitoringObservation = (query?: CoordinateQuery) => {
+  const location = useFarmLocation();
+  const resolved = query ?? location;
+  const enabled = resolved.latitude != null && resolved.longitude != null;
+  return useQuery({
+    queryKey: apiQueryKeys.farmObservationLatest(resolved),
+    queryFn: () => fetchLatestMonitoringObservation(resolved),
+    enabled,
+    staleTime: STALE_MS,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 404) return false;
+      return retryGet(failureCount, error);
+    },
+  });
+};
+
 export const useHorizonFeatures = (query?: CoordinateQuery) => {
   const location = useFarmLocation();
   const resolved = query ?? location;
@@ -101,6 +119,30 @@ export const useSeasonalForecastDaily = (days = 30, query?: CoordinateQuery) => 
     enabled,
     staleTime: STALE_MS,
     retry: retryGet,
+  });
+};
+
+export const useManualRefreshMutation = () => {
+  const queryClient = useQueryClient();
+  const location = useFarmLocation();
+
+  return useMutation({
+    mutationFn: runManualRefresh,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["pipeline"] });
+      void queryClient.invalidateQueries({ queryKey: ["agromonitoring"] });
+      void queryClient.invalidateQueries({ queryKey: ["llm"] });
+      void queryClient.invalidateQueries({ queryKey: apiQueryKeys.farmLatest });
+      void queryClient.invalidateQueries({ queryKey: ["farm-monitoring"] });
+      if (location.latitude != null && location.longitude != null) {
+        void queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.horizonFeatures(location),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.seasonalForecastDaily({ ...location, days: 30 }),
+        });
+      }
+    },
   });
 };
 

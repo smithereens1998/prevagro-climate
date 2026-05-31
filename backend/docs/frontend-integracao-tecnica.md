@@ -158,8 +158,8 @@ Body:
 ```json
 {
   "name": "Fazenda Daterra Coffee",
-  "latitude": 18.9439,
-  "longitude": 46.9925
+  "latitude": -18.9439,
+  "longitude": -46.9925
 }
 ```
 
@@ -175,6 +175,15 @@ Retorno:
 #### `DELETE /farm-monitoring/coordinates/{coordinate_id}`
 
 - Remove coordenada.
+
+#### `GET /farm-monitoring/observations/latest?latitude={lat}&longitude={lon}`
+
+- Retorna a ultima observacao persistida em `farm_monitoring_records` (clima/solo).
+- Se coordenada nao for enviada, usa resolucao efetiva (monitoring > coordinates).
+- Campos principais:
+  - `weather.temp_celsius`, `weather.humidity_percent`, `weather.wind_speed_mps`
+  - `soil.moisture`, `soil.temp_surface_celsius`
+  - `observed_at`
 
 #### `GET /farm-monitoring/latest`
 

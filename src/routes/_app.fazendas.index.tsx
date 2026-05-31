@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Building2, MapPin, Plus } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,13 @@ export const Route = createFileRoute("/_app/fazendas/")({
 });
 
 function FarmsPage() {
+  const navigate = useNavigate();
   const { farms, selectedFarm, selectFarm } = useFarm();
+
+  const handleSelectFarm = (farm: (typeof farms)[number]) => {
+    selectFarm(farm);
+    void navigate({ to: "/" });
+  };
 
   return (
     <>
@@ -46,7 +52,7 @@ function FarmsPage() {
               <button
                 key={farm.id}
                 type="button"
-                onClick={() => selectFarm(farm)}
+                onClick={() => handleSelectFarm(farm)}
                 className={cn(
                   "rounded-xl border bg-surface p-5 text-left transition-colors hover:border-primary/40",
                   active ? "border-primary/50 ring-1 ring-primary/20" : "border-border",
@@ -69,10 +75,15 @@ function FarmsPage() {
                   {formatCoordinatePair(farm.latitude, farm.longitude)}
                 </p>
                 <div className="mt-4 flex gap-2">
-                  <Button asChild size="sm" variant={active ? "default" : "outline"}>
-                    <Link to="/" onClick={() => selectFarm(farm)}>
-                      Abrir painel
-                    </Link>
+                  <Button
+                    size="sm"
+                    variant={active ? "default" : "outline"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleSelectFarm(farm);
+                    }}
+                  >
+                    Abrir painel
                   </Button>
                 </div>
               </button>

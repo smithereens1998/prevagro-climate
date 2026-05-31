@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.db.database import engine
 from app.integrations.webhook_notifier import notify_map_updated
+from app.services.coordinate_utils import normalize_coordinate_pair, resolve_effective_coordinate
 
 settings = get_settings()
 
@@ -354,6 +355,7 @@ def add_coordinate(
     user_id: int | None = None,
 ) -> dict[str, Any]:
     resolved_user_id = _resolve_user_id(user_id)
+    normalized_latitude, normalized_longitude = normalize_coordinate_pair(latitude, longitude)
     sql = text(
         """
         INSERT INTO public.farm_coordinates (user_id, name, latitude, longitude, polygon_id, updated_at)
@@ -367,8 +369,8 @@ def add_coordinate(
             {
                 "user_id": resolved_user_id,
                 "name": name,
-                "latitude": latitude,
-                "longitude": longitude,
+                "latitude": normalized_latitude,
+                "longitude": normalized_longitude,
                 "polygon_id": polygon_id,
             },
         ).mappings().one()
@@ -385,14 +387,27 @@ def list_coordinates() -> list[dict[str, Any]]:
     )
     with engine.connect() as connection:
         rows = connection.execute(sql).mappings().all()
-    return [dict(row) for row in rows]
+
+    normalized_rows: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        lat, lon = normalize_coordinate_pair(float(item["latitude"]), float(item["longitude"]))
+        item["latitude"] = lat
+        item["longitude"] = lon
+        normalized_rows.append(item)
+    return normalized_rows
 
 
 def get_latest_farm_identity(*, user_id: int | None = None) -> dict[str, Any] | None:
     resolved_user_id = _resolve_user_id(user_id)
     sql = text(
         """
-        SELECT farm_name, farm_location, latitude, longitude, observed_at
+        SELECT
+            farm_name,
+            farm_location,
+            COALESCE(polygon_center_latitude, latitude) AS latitude,
+            COALESCE(polygon_center_longitude, longitude) AS longitude,
+            observed_at
         FROM public.farm_monitoring_records
         WHERE user_id = :user_id
         ORDER BY observed_at DESC, id DESC
@@ -405,12 +420,97 @@ def get_latest_farm_identity(*, user_id: int | None = None) -> dict[str, Any] | 
     if not row:
         return None
 
+    lat = float(row["latitude"]) if row["latitude"] is not None else None
+    lon = float(row["longitude"]) if row["longitude"] is not None else None
+    if lat is not None and lon is not None:
+        lat, lon = normalize_coordinate_pair(lat, lon)
+
     return {
         "farm_name": row["farm_name"],
         "farm_location": row["farm_location"],
-        "latitude": float(row["latitude"]) if row["latitude"] is not None else None,
-        "longitude": float(row["longitude"]) if row["longitude"] is not None else None,
+        "latitude": lat,
+        "longitude": lon,
         "observed_at": row["observed_at"],
+    }
+
+
+def get_latest_monitoring_observation(
+    *,
+    user_id: int | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> dict[str, Any] | None:
+    resolved_user_id = _resolve_user_id(user_id)
+    resolved_latitude, resolved_longitude = resolve_effective_coordinate(
+        user_id=resolved_user_id,
+        latitude=latitude,
+        longitude=longitude,
+    )
+
+    sql = text(
+        """
+        SELECT
+            farm_name,
+            farm_location,
+            COALESCE(polygon_center_latitude, latitude) AS latitude,
+            COALESCE(polygon_center_longitude, longitude) AS longitude,
+            observed_at,
+            weather_temp_celsius,
+            weather_temp_min_celsius,
+            weather_temp_max_celsius,
+            weather_humidity_percent,
+            wind_speed_mps,
+            soil_moisture,
+            soil_temp_surface_celsius
+        FROM public.farm_monitoring_records
+        WHERE user_id = :user_id
+          AND (
+            weather_temp_celsius IS NOT NULL
+            OR soil_moisture IS NOT NULL
+            OR polygon_center_latitude IS NOT NULL
+          )
+        ORDER BY observed_at DESC, id DESC
+        LIMIT 1
+        """
+    )
+
+    with engine.connect() as connection:
+        row = connection.execute(sql, {"user_id": resolved_user_id}).mappings().one_or_none()
+
+    if not row:
+        return None
+
+    lat = float(row["latitude"]) if row["latitude"] is not None else resolved_latitude
+    lon = float(row["longitude"]) if row["longitude"] is not None else resolved_longitude
+    lat, lon = normalize_coordinate_pair(lat, lon)
+
+    return {
+        "farm_name": row["farm_name"],
+        "farm_location": row["farm_location"],
+        "latitude": lat,
+        "longitude": lon,
+        "observed_at": row["observed_at"],
+        "weather": {
+            "temp_celsius": float(row["weather_temp_celsius"])
+            if row["weather_temp_celsius"] is not None
+            else None,
+            "temp_min_celsius": float(row["weather_temp_min_celsius"])
+            if row["weather_temp_min_celsius"] is not None
+            else None,
+            "temp_max_celsius": float(row["weather_temp_max_celsius"])
+            if row["weather_temp_max_celsius"] is not None
+            else None,
+            "humidity_percent": float(row["weather_humidity_percent"])
+            if row["weather_humidity_percent"] is not None
+            else None,
+            "wind_speed_mps": float(row["wind_speed_mps"]) if row["wind_speed_mps"] is not None else None,
+        },
+        "soil": {
+            "moisture": float(row["soil_moisture"]) if row["soil_moisture"] is not None else None,
+            "temp_surface_celsius": float(row["soil_temp_surface_celsius"])
+            if row["soil_temp_surface_celsius"] is not None
+            else None,
+        },
     }
 
 
@@ -424,6 +524,7 @@ def update_coordinate(
     user_id: int | None = None,
 ) -> dict[str, Any] | None:
     resolved_user_id = _resolve_user_id(user_id)
+    normalized_latitude, normalized_longitude = normalize_coordinate_pair(latitude, longitude)
     sql = text(
         """
         UPDATE public.farm_coordinates
@@ -444,8 +545,8 @@ def update_coordinate(
                 "coordinate_id": coordinate_id,
                 "user_id": resolved_user_id,
                 "name": name,
-                "latitude": latitude,
-                "longitude": longitude,
+                "latitude": normalized_latitude,
+                "longitude": normalized_longitude,
                 "polygon_id": polygon_id,
             },
         ).mappings().one_or_none()

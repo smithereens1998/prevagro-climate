@@ -65,6 +65,10 @@ export const FarmProvider = ({ children }: { children: ReactNode }) => {
       setStoredFarmId(farm.id);
       void queryClient.invalidateQueries({ queryKey: apiQueryKeys.farmScoped(farm.id) });
       void queryClient.invalidateQueries({ queryKey: apiQueryKeys.farmLatest });
+      void queryClient.invalidateQueries({ queryKey: ["farm-monitoring"] });
+      void queryClient.invalidateQueries({ queryKey: ["pipeline"] });
+      void queryClient.invalidateQueries({ queryKey: ["agromonitoring"] });
+      void queryClient.invalidateQueries({ queryKey: ["llm"] });
     },
     [queryClient],
   );
@@ -128,7 +132,14 @@ export const useFarm = () => {
 };
 
 export const useFarmLocation = (): CoordinateQuery => {
-  const { selectedFarm } = useFarm();
+  const { selectedFarm, farmIdentity } = useFarm();
+
+  if (farmIdentity?.latitude != null && farmIdentity?.longitude != null) {
+    if (!selectedFarm || coordsNear(farmIdentity, selectedFarm)) {
+      return { latitude: farmIdentity.latitude, longitude: farmIdentity.longitude };
+    }
+  }
+
   if (selectedFarm) {
     return { latitude: selectedFarm.latitude, longitude: selectedFarm.longitude };
   }

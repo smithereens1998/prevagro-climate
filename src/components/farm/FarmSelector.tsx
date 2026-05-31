@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Building2, ChevronDown, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,17 @@ import { useFarm } from "@/lib/farm/farm-context";
 import { formatCoordinatePair } from "@/lib/api/normalize";
 import { cn } from "@/lib/utils";
 
-export const FarmSelector = () => {
+type FarmSelectorProps = {
+  variant?: "header" | "outline-button";
+  buttonLabel?: string;
+  buttonSize?: ButtonProps["size"];
+};
+
+export const FarmSelector = ({
+  variant = "header",
+  buttonLabel = "Trocar fazenda",
+  buttonSize = "sm",
+}: FarmSelectorProps) => {
   const { farms, selectedFarm, farmDisplayName, selectFarm, isLoading } = useFarm();
 
   if (isLoading) {
@@ -38,15 +48,22 @@ export const FarmSelector = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex max-w-[220px] items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground transition-colors hover:border-primary/40"
-          aria-label="Selecionar fazenda"
-        >
-          <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-          <span className="truncate">{label}</span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </button>
+        {variant === "outline-button" ? (
+          <Button variant="outline" size={buttonSize} className="gap-2">
+            {buttonLabel}
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+          </Button>
+        ) : (
+          <button
+            type="button"
+            className="flex max-w-[220px] items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground transition-colors hover:border-primary/40"
+            aria-label="Selecionar fazenda"
+          >
+            <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+            <span className="truncate">{label}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
         <DropdownMenuLabel>Suas fazendas</DropdownMenuLabel>

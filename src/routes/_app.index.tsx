@@ -24,6 +24,7 @@ import {
   YAxis,
 } from "recharts";
 import { KpiCard, PageHeader, SectionCard } from "@/components/ui-bits";
+import { FarmSelector } from "@/components/farm/FarmSelector";
 import { FarmMapPreview } from "@/components/FarmMapPreview";
 import { PipelineStatusBadge } from "@/components/PipelineStatusBadge";
 import { Button } from "@/components/ui/button";
@@ -172,7 +173,6 @@ function Overview() {
     <TooltipProvider delayDuration={200}>
     <>
       <PageHeader
-        title="Visão Geral"
         description={`${farmLabel}${locationLabel}${areaLabel ? ` · ${areaLabel}` : ""} · ${coordsLabel} — dados da API. Atualizado: ${updatedLabel}.`}
         action={
           <div className="flex flex-wrap items-center gap-2">
@@ -218,10 +218,8 @@ function Overview() {
             : `Coordenadas ativas · ${coordsLabel}`
         }
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/fazendas">Trocar fazenda</Link>
-            </Button>
+          <div className="flex flex-wrap gap-2">
+            <FarmSelector variant="outline-button" />
             <Button asChild size="sm">
               <Link to="/mapa">Abrir mapa</Link>
             </Button>
