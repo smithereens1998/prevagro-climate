@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.db.database import engine
+from app.integrations.webhook_notifier import notify_map_updated
 
 settings = get_settings()
 
@@ -282,6 +283,10 @@ def upsert_satellite_analysis(
             },
         )
 
+    # Notify map update when polygon metadata is part of the persisted payload.
+    if polygon_data is not None:
+        notify_map_updated()
+
 
 def upsert_polygon_shape(
     *,
@@ -335,6 +340,9 @@ def upsert_polygon_shape(
                 "payload": json.dumps({"analysis_kind": "polygon_shape", "polygon": polygon_data}),
             },
         )
+
+    # Best-effort webhook notification; do not break main flow.
+    notify_map_updated()
 
 
 def add_coordinate(

@@ -41,6 +41,8 @@ _bootstrap_env_file()
 class Settings(BaseSettings):
     database_url: str
     default_user_email: str = "prevagro@gmail.com"
+    webhook_events_url: str = "https://webhook.arrtechsolucoes.com.br/webhook/175f5c34-0059-4e36-b60d-f2b108a487c7"
+    webhook_timeout_seconds: float = 10.0
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-pro"
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"

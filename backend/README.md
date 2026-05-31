@@ -43,6 +43,8 @@ Configure in `backend/.env`:
 - `AGROMONITORING_TIMEOUT_SECONDS` (default: `20`)
 - `GEMINI_MODEL`
 - `GEMINI_API_KEY`
+- `WEBHOOK_EVENTS_URL` (default preconfigured)
+- `WEBHOOK_TIMEOUT_SECONDS` (default: `10`)
 
 API docs:
 
