@@ -8,6 +8,14 @@ import { Box, Download, Layers, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FARM_METRICS, FARM_PERIMETER, getRiskScore, type Risco } from "@/lib/geo/farm-data";
 import {
+  useAgroPolygons,
+  useAgroSoil,
+  useAgroWeather,
+  useFarmLocation,
+  useHorizonFeatures,
+} from "@/lib/api/hooks";
+import { horizonToRiskScore } from "@/lib/api/adapters";
+import {
   DEFAULT_ACTIVE_LAYERS,
   LAYER_IDS,
   LAYER_META,
@@ -46,19 +54,45 @@ function MapaPage() {
   const [layerOpacity, setLayerOpacity] = useState(0.85);
   const [is3D, setIs3D] = useState(false);
 
+  const location = useFarmLocation();
+  const { latitude, longitude } = location;
+  const weather = useAgroWeather(latitude!, longitude!);
+  const soil = useAgroSoil(latitude!, longitude!);
+  const horizon = useHorizonFeatures();
+  const polygons = useAgroPolygons();
+
   const toggle = (l: string) =>
     setActive((a) => (a.includes(l) ? a.filter((x) => x !== l) : [...a, l]));
 
   const farm = FARM_PERIMETER.properties;
   const m = FARM_METRICS;
+  const apiRisk = horizon.isSuccess ? horizonToRiskScore(horizon.data) : null;
+  const riskScore = apiRisk ?? getRiskScore();
+  const temp = weather.data?.main?.temp_celsius != null ? weather.data.main.temp_celsius : m.temp;
+  const umidade =
+    weather.data?.main?.humidity != null ? Math.round(weather.data.main.humidity) : m.umidade;
+  const soloMoisture = soil.data?.moisture;
+  const soloLabel =
+    soloMoisture != null
+      ? `${Math.round(soloMoisture * 100)}% umid.`
+      : `${Math.round(m.soloScore * 100)}/100`;
+
   const metrics = [
     { k: "Área", v: `${farm.hectares} ha` },
-    { k: "Risco", v: `${m.risco} (${getRiskScore()}/100)`, tone: riscoTone[m.risco] },
+    {
+      k: "Risco",
+      v: `${m.risco} (${riskScore}/100)`,
+      tone: riscoTone[m.risco],
+    },
     { k: "NDVI", v: m.ndvi.toFixed(2) },
-    { k: "Temperatura", v: `${m.temp.toFixed(1)} °C` },
-    { k: "Umidade", v: `${m.umidade} %` },
-    { k: "Solo", v: `${Math.round(m.soloScore * 100)}/100` },
+    { k: "Temperatura", v: `${temp.toFixed(1)} °C` },
+    { k: "Umidade", v: `${umidade} %` },
+    { k: "Solo", v: soloLabel },
   ];
+  const polygonHint =
+    polygons.isSuccess && polygons.data.length > 0
+      ? ` · ${polygons.data.length} polígono(s) AgroMonitoring`
+      : "";
 
   return (
     <>
@@ -101,13 +135,19 @@ function MapaPage() {
             <p className="text-xs text-muted-foreground">
               {farm.municipio} · {farm.cultura} · Safra {farm.safra}
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{farm.fonte}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {farm.fonte}
+              {polygonHint}
+              {weather.isError && horizon.isError ? " · API offline (mock)" : ""}
+            </p>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
               {metrics.map((item) => (
                 <div key={item.k} className="rounded-lg border border-border bg-surface p-3">
                   <dt className="text-xs text-muted-foreground">{item.k}</dt>
-                  <dd className={cn("mt-1 text-base font-semibold", item.tone ?? "text-foreground")}>
+                  <dd
+                    className={cn("mt-1 text-base font-semibold", item.tone ?? "text-foreground")}
+                  >
                     {item.v}
                   </dd>
                 </div>
@@ -203,7 +243,9 @@ function MapaPage() {
                       {l}
                       <span className="ml-2 text-[10px] opacity-60">{viz}</span>
                     </span>
-                    <span className={cn("h-1.5 w-8 rounded-full", on ? "bg-primary" : "bg-muted")} />
+                    <span
+                      className={cn("h-1.5 w-8 rounded-full", on ? "bg-primary" : "bg-muted")}
+                    />
                   </button>
                 );
               })}

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppSoloRouteImport } from './routes/_app.solo'
@@ -19,6 +20,11 @@ import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoe
 import { Route as AppClimaRouteImport } from './routes/_app.clima'
 import { Route as AppAlertasRouteImport } from './routes/_app.alertas'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -66,6 +72,7 @@ const AppAlertasRoute = AppAlertasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
   '/alertas': typeof AppAlertasRoute
   '/clima': typeof AppClimaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/solo': typeof AppSoloRoute
 }
 export interface FileRoutesByTo {
+  '/login': typeof LoginRoute
   '/alertas': typeof AppAlertasRoute
   '/clima': typeof AppClimaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -87,6 +95,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
   '/_app/alertas': typeof AppAlertasRoute
   '/_app/clima': typeof AppClimaRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/alertas'
     | '/clima'
     | '/configuracoes'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/solo'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/login'
     | '/alertas'
     | '/clima'
     | '/configuracoes'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/login'
     | '/_app/alertas'
     | '/_app/clima'
     | '/_app/configuracoes'
@@ -132,10 +144,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -228,6 +248,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

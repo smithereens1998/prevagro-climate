@@ -9,6 +9,7 @@ import {
   Thermometer,
   Mountain,
   Brain,
+  Loader2,
 } from "lucide-react";
 import {
   Area,
@@ -23,10 +24,10 @@ import {
 } from "recharts";
 import { KpiCard, PageHeader, SectionCard } from "@/components/ui-bits";
 import { FarmMapPreview } from "@/components/FarmMapPreview";
+import { PipelineStatusBadge } from "@/components/PipelineStatusBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  aiRecommendations,
   chartTooltip,
   CROP_FOCUS,
   FARM_HECTARES,
@@ -34,12 +35,24 @@ import {
   FARM_MUNICIPIO,
   FARM_SAFRA,
   FARM_SNAPSHOT,
-  getOverviewKpis,
   monthlyClimate,
   monthlyNdvi,
-  strategicInsight,
   type OverviewKpiId,
 } from "@/lib/farm-insights";
+import {
+  getDefaultOverviewKpis,
+  horizonToRiskScore,
+  llmToRecommendations,
+  llmToStrategicInsight,
+  mergeOverviewKpis,
+} from "@/lib/api/adapters";
+import {
+  useAgroWeather,
+  useCachedLlmPrediction,
+  useFarmLocation,
+  useHorizonFeatures,
+  useLlmPredictionMutation,
+} from "@/lib/api/hooks";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -65,12 +78,12 @@ const kpiIcons: Record<OverviewKpiId, typeof Sprout> = {
   solo: Mountain,
 };
 
-const kpiTones: Record<OverviewKpiId, "primary" | "warning" | "default"> = {
+const kpiTones: Record<OverviewKpiId, "primary" | "warning" | "muted"> = {
   risco: "warning",
   ndvi: "primary",
   umidade: "primary",
-  temp: "default",
-  solo: "default",
+  temp: "muted",
+  solo: "muted",
 };
 
 const cropStatusClass = {
@@ -81,19 +94,55 @@ const cropStatusClass = {
 } as const;
 
 function Overview() {
-  const kpis = getOverviewKpis();
+  const location = useFarmLocation();
+  const horizon = useHorizonFeatures();
+  const weather = useAgroWeather(location.latitude!, location.longitude!);
+  const llmCache = useCachedLlmPrediction();
+  const llmMutation = useLlmPredictionMutation();
+
+  const prediction = llmMutation.data ?? llmCache.data;
+  const riskScore = horizon.isSuccess ? horizonToRiskScore(horizon.data) : null;
+  const kpis = mergeOverviewKpis(
+    getDefaultOverviewKpis(),
+    riskScore,
+    weather.isSuccess ? weather.data : undefined,
+  );
+  const insight = llmToStrategicInsight(prediction);
+  const recommendations = llmToRecommendations(prediction);
+  const usingApi = horizon.isSuccess || weather.isSuccess || Boolean(prediction);
+  const updatedLabel = usingApi
+    ? "dados da API (com fallback local se necessário)"
+    : `dados locais · ${FARM_SNAPSHOT.updatedAt}`;
+
+  const handleGenerateAnalysis = () => {
+    llmMutation.mutate();
+  };
 
   return (
     <>
       <PageHeader
         title="Visão Geral"
-        description={`${FARM_NAME} · ${FARM_MUNICIPIO} — café e soja na safra ${FARM_SAFRA}. Dados atualizados em ${FARM_SNAPSHOT.updatedAt}.`}
+        description={`${FARM_NAME} · ${FARM_MUNICIPIO} — café e soja na safra ${FARM_SAFRA}. Atualizado: ${updatedLabel}.`}
         action={
-          <Button>
-            <Brain className="h-4 w-4" /> Gerar análise
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <PipelineStatusBadge />
+            <Button onClick={handleGenerateAnalysis} disabled={llmMutation.isPending}>
+              {llmMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Brain className="h-4 w-4" />
+              )}
+              Gerar análise
+            </Button>
+          </div>
         }
       />
+
+      {llmMutation.isError && (
+        <p className="mb-4 text-sm text-warning" role="status">
+          Não foi possível gerar análise via API — exibindo recomendações locais.
+        </p>
+      )}
 
       <SectionCard
         title={`Mapa de Risco — ${FARM_NAME}`}
@@ -125,7 +174,12 @@ function Overview() {
                       </span>
                     </p>
                   </div>
-                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", cropStatusClass[c.status])}>
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      cropStatusClass[c.status],
+                    )}
+                  >
                     {c.stage}
                   </span>
                 </div>
@@ -142,18 +196,26 @@ function Overview() {
               </div>
             ))}
             <div className="rounded-lg border border-border bg-surface p-4">
-              <p className="text-xs text-muted-foreground">Hidrologia ({FARM_SNAPSHOT.windowDays} dias)</p>
+              <p className="text-xs text-muted-foreground">
+                Hidrologia ({FARM_SNAPSHOT.windowDays} dias)
+              </p>
               <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
                 <div>
-                  <p className="text-lg font-semibold text-foreground">{FARM_SNAPSHOT.chuvaAcumuladaMm}</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {FARM_SNAPSHOT.chuvaAcumuladaMm}
+                  </p>
                   <p className="text-muted-foreground">mm chuva</p>
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-foreground">{FARM_SNAPSHOT.evapotranspiracaoMm}</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {FARM_SNAPSHOT.evapotranspiracaoMm}
+                  </p>
                   <p className="text-muted-foreground">mm ET₀</p>
                 </div>
                 <div>
-                  <p className="text-lg font-semibold text-warning">{FARM_SNAPSHOT.deficitHidricoMm}</p>
+                  <p className="text-lg font-semibold text-warning">
+                    {FARM_SNAPSHOT.deficitHidricoMm}
+                  </p>
                   <p className="text-muted-foreground">mm déficit</p>
                 </div>
               </div>
@@ -192,11 +254,31 @@ function Overview() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis
+                  dataKey="m"
+                  stroke="#AAB6C4"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip {...chartTooltip} />
-                <Area type="monotone" dataKey="chuva" stroke="#6BE234" fill="url(#r1)" strokeWidth={2} name="Chuva (mm)" />
-                <Area type="monotone" dataKey="temp" stroke="#F4B400" fill="url(#t1)" strokeWidth={2} name="Temp (°C)" />
+                <Area
+                  type="monotone"
+                  dataKey="chuva"
+                  stroke="#6BE234"
+                  fill="url(#r1)"
+                  strokeWidth={2}
+                  name="Chuva (mm)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="temp"
+                  stroke="#F4B400"
+                  fill="url(#t1)"
+                  strokeWidth={2}
+                  name="Temp (°C)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -207,10 +289,29 @@ function Overview() {
             <ResponsiveContainer>
               <LineChart data={monthlyNdvi}>
                 <CartesianGrid stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} domain={[0, 1]} />
+                <XAxis
+                  dataKey="m"
+                  stroke="#AAB6C4"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#AAB6C4"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[0, 1]}
+                />
                 <Tooltip {...chartTooltip} />
-                <Line type="monotone" dataKey="ndvi" stroke="#6BE234" strokeWidth={2.5} dot={{ fill: "#6BE234", r: 3 }} name="NDVI" />
+                <Line
+                  type="monotone"
+                  dataKey="ndvi"
+                  stroke="#6BE234"
+                  strokeWidth={2.5}
+                  dot={{ fill: "#6BE234", r: 3 }}
+                  name="NDVI"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -219,7 +320,11 @@ function Overview() {
 
       <SectionCard
         title="Insight Estratégico"
-        subtitle={`Síntese IA · janela de ${FARM_SNAPSHOT.windowDays} dias`}
+        subtitle={
+          prediction?.metadata?.prediction_id
+            ? `IA · prediction #${prediction.metadata.prediction_id} · ${prediction.metadata.prompt_version ?? "v1"}`
+            : `Síntese · janela de ${FARM_SNAPSHOT.windowDays} dias`
+        }
         className="mb-6"
       >
         <div className="flex gap-4 rounded-lg border border-border bg-muted/30 p-4">
@@ -227,11 +332,14 @@ function Overview() {
             <Brain className="h-4 w-4" />
           </div>
           <div className="space-y-2 text-sm leading-relaxed text-foreground">
-            <p>{strategicInsight.summary}</p>
-            <p className="text-muted-foreground">{strategicInsight.action}</p>
+            <p>{insight.summary}</p>
+            <p className="text-muted-foreground">{insight.action}</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              {strategicInsight.tags.map((t) => (
-                <span key={t} className="rounded-md border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground">
+              {insight.tags.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-md border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground"
+                >
                   {t}
                 </span>
               ))}
@@ -242,15 +350,19 @@ function Overview() {
 
       <SectionCard
         title="Recomendações da IA"
-        subtitle="Foco em café e soja — derivadas do mock operacional"
+        subtitle={
+          usingApi && prediction?.acoes_recomendadas?.length
+            ? "Derivadas da API /llm/predictions"
+            : "Fallback local quando a API não responde"
+        }
         action={
           <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-            {aiRecommendations.length} ativas
+            {recommendations.length} ativas
           </span>
         }
       >
         <div className="grid gap-3 md:grid-cols-3">
-          {aiRecommendations.map((r) => {
+          {recommendations.map((r) => {
             const Icon = recIcons[r.tone];
             const tone =
               r.tone === "primary"
