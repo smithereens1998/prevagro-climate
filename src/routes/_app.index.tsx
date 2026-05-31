@@ -1,13 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
   Droplets,
   Sprout,
-  TrendingUp,
-  Sparkles,
   AlertTriangle,
   Beaker,
   CloudRain,
+  Thermometer,
+  Mountain,
+  Brain,
 } from "lucide-react";
 import {
   Area,
@@ -21,8 +22,24 @@ import {
   YAxis,
 } from "recharts";
 import { KpiCard, PageHeader, SectionCard } from "@/components/ui-bits";
-import { SatelliteMap } from "@/components/SatelliteMap";
+import { FarmMapPreview } from "@/components/FarmMapPreview";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import {
+  aiRecommendations,
+  chartTooltip,
+  CROP_FOCUS,
+  FARM_HECTARES,
+  FARM_NAME,
+  FARM_MUNICIPIO,
+  FARM_SAFRA,
+  FARM_SNAPSHOT,
+  getOverviewKpis,
+  monthlyClimate,
+  monthlyNdvi,
+  strategicInsight,
+  type OverviewKpiId,
+} from "@/lib/farm-insights";
 
 export const Route = createFileRoute("/_app/")({
   head: () => ({
@@ -34,89 +51,136 @@ export const Route = createFileRoute("/_app/")({
   component: Overview,
 });
 
-const climaData = Array.from({ length: 12 }).map((_, i) => ({
-  m: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i],
-  temp: 20 + Math.sin(i / 2) * 6 + Math.random() * 2,
-  chuva: 60 + Math.cos(i / 2) * 50 + Math.random() * 20,
-}));
-const ndviData = Array.from({ length: 12 }).map((_, i) => ({
-  m: ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][i],
-  ndvi: 0.4 + Math.sin(i / 2.4) * 0.25 + 0.1,
-}));
-const prodData = Array.from({ length: 6 }).map((_, i) => ({
-  s: `Safra ${i + 1}`,
-  v: 50 + i * 5 + Math.random() * 8,
-}));
+const recIcons = {
+  primary: Droplets,
+  warning: Beaker,
+  danger: CloudRain,
+} as const;
 
-const chartTooltip = {
-  contentStyle: {
-    background: "oklch(0.244 0.026 240)",
-    border: "1px solid oklch(1 0 0 / 0.08)",
-    borderRadius: 12,
-    color: "#fff",
-    fontSize: 12,
-  },
-  cursor: { stroke: "#6BE234", strokeOpacity: 0.3 },
+const kpiIcons: Record<OverviewKpiId, typeof Sprout> = {
+  risco: AlertTriangle,
+  ndvi: Sprout,
+  umidade: Droplets,
+  temp: Thermometer,
+  solo: Mountain,
 };
 
+const kpiTones: Record<OverviewKpiId, "primary" | "warning" | "default"> = {
+  risco: "warning",
+  ndvi: "primary",
+  umidade: "primary",
+  temp: "default",
+  solo: "default",
+};
+
+const cropStatusClass = {
+  ok: "bg-primary/15 text-primary",
+  warn: "bg-warning/15 text-warning",
+  done: "bg-muted text-muted-foreground",
+  new: "bg-secondary/20 text-secondary",
+} as const;
+
 function Overview() {
+  const kpis = getOverviewKpis();
+
   return (
     <>
       <PageHeader
         title="Visão Geral"
-        description="Monitore o clima, solo e cultivos com inteligência artificial."
+        description={`${FARM_NAME} · ${FARM_MUNICIPIO} — café e soja na safra ${FARM_SAFRA}. Dados atualizados em ${FARM_SNAPSHOT.updatedAt}.`}
         action={
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 glow-primary">
-            <Sparkles className="h-4 w-4" /> Gerar análise IA
+          <Button>
+            <Brain className="h-4 w-4" /> Gerar análise
           </Button>
         }
       />
 
-      {/* Hero map */}
       <SectionCard
-        title="Mapa de Risco — Fazenda São João"
-        subtitle="Heatmap em tempo real · atualizado há 4 min"
+        title={`Mapa de Risco — ${FARM_NAME}`}
+        subtitle={`Mapbox GL · heatmap nativo · ${FARM_HECTARES} ha · Patrocínio/MG`}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">Exportar</Button>
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">Abrir mapa</Button>
+            <Button variant="outline" size="sm">
+              Exportar
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/mapa">Abrir mapa</Link>
+            </Button>
           </div>
         }
         className="mb-6"
       >
         <div className="grid gap-5 lg:grid-cols-[1.7fr_1fr]">
-          <SatelliteMap className="h-[360px]" />
+          <FarmMapPreview className="h-[360px]" />
           <div className="flex flex-col gap-3">
-            {[
-              { label: "Área total", v: "1.248", u: "ha" },
-              { label: "Área analisada", v: "1.106", u: "ha (88%)" },
-              { label: "Cultura principal", v: "Soja", u: "Safra 24/25" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-border bg-surface/60 p-4">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-                  {s.v} <span className="text-sm font-normal text-muted-foreground">{s.u}</span>
-                </p>
+            {CROP_FOCUS.map((c) => (
+              <div key={c.id} className="rounded-lg border border-border bg-surface p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{c.name}</p>
+                    <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
+                      {c.areaHa}{" "}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ha ({c.sharePct}%)
+                      </span>
+                    </p>
+                  </div>
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", cropStatusClass[c.status])}>
+                    {c.stage}
+                  </span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <dt className="text-muted-foreground">NDVI</dt>
+                    <dd className="font-medium text-foreground">{c.ndvi.toFixed(2)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Estágio</dt>
+                    <dd className="font-medium text-foreground">{c.stage}</dd>
+                  </div>
+                </dl>
               </div>
             ))}
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <p className="text-xs text-muted-foreground">Hidrologia ({FARM_SNAPSHOT.windowDays} dias)</p>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{FARM_SNAPSHOT.chuvaAcumuladaMm}</p>
+                  <p className="text-muted-foreground">mm chuva</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{FARM_SNAPSHOT.evapotranspiracaoMm}</p>
+                  <p className="text-muted-foreground">mm ET₀</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-warning">{FARM_SNAPSHOT.deficitHidricoMm}</p>
+                  <p className="text-muted-foreground">mm déficit</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </SectionCard>
 
-      {/* KPIs */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Risco Climático" value="34" unit="/100" delta={-12} icon={AlertTriangle} tone="warning" />
-        <KpiCard label="Índice de Vegetação (NDVI)" value="0.72" delta={5} icon={Sprout} tone="primary" />
-        <KpiCard label="Umidade do Solo" value="62" unit="%" delta={3} icon={Droplets} tone="primary" />
-        <KpiCard label="Produtividade Estimada" value="78,4" unit="sc/ha" delta={8} icon={TrendingUp} tone="primary" />
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {kpis.map((k) => (
+          <KpiCard
+            key={k.id}
+            label={k.label}
+            value={k.value}
+            unit={k.unit}
+            delta={k.delta}
+            icon={kpiIcons[k.id]}
+            tone={kpiTones[k.id]}
+          />
+        ))}
       </div>
 
-      {/* Charts */}
-      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard title="Histórico Climático" subtitle="Temperatura e chuva — 12 meses">
           <div className="h-56">
             <ResponsiveContainer>
-              <AreaChart data={climaData}>
+              <AreaChart data={monthlyClimate}>
                 <defs>
                   <linearGradient id="t1" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#F4B400" stopOpacity={0.5} />
@@ -131,76 +195,63 @@ function Overview() {
                 <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip {...chartTooltip} />
-                <Area type="monotone" dataKey="chuva" stroke="#6BE234" fill="url(#r1)" strokeWidth={2} />
-                <Area type="monotone" dataKey="temp" stroke="#F4B400" fill="url(#t1)" strokeWidth={2} />
+                <Area type="monotone" dataKey="chuva" stroke="#6BE234" fill="url(#r1)" strokeWidth={2} name="Chuva (mm)" />
+                <Area type="monotone" dataKey="temp" stroke="#F4B400" fill="url(#t1)" strokeWidth={2} name="Temp (°C)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </SectionCard>
 
-        <SectionCard title="Evolução do NDVI" subtitle="Índice de vegetação por mês">
+        <SectionCard title="Evolução do NDVI" subtitle="Índice de vegetação no perímetro">
           <div className="h-56">
             <ResponsiveContainer>
-              <LineChart data={ndviData}>
+              <LineChart data={monthlyNdvi}>
                 <CartesianGrid stroke="#ffffff10" vertical={false} />
                 <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} domain={[0, 1]} />
                 <Tooltip {...chartTooltip} />
-                <Line type="monotone" dataKey="ndvi" stroke="#6BE234" strokeWidth={2.5} dot={{ fill: "#6BE234", r: 3 }} />
+                <Line type="monotone" dataKey="ndvi" stroke="#6BE234" strokeWidth={2.5} dot={{ fill: "#6BE234", r: 3 }} name="NDVI" />
               </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Tendência de Produtividade" subtitle="Sacas / hectare por safra">
-          <div className="h-56">
-            <ResponsiveContainer>
-              <AreaChart data={prodData}>
-                <defs>
-                  <linearGradient id="p1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3FAE2A" stopOpacity={0.6} />
-                    <stop offset="100%" stopColor="#3FAE2A" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="s" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip {...chartTooltip} />
-                <Area type="monotone" dataKey="v" stroke="#3FAE2A" fill="url(#p1)" strokeWidth={2} />
-              </AreaChart>
             </ResponsiveContainer>
           </div>
         </SectionCard>
       </div>
 
-      {/* AI Recommendations */}
+      <SectionCard
+        title="Insight Estratégico"
+        subtitle={`Síntese IA · janela de ${FARM_SNAPSHOT.windowDays} dias`}
+        className="mb-6"
+      >
+        <div className="flex gap-4 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
+            <Brain className="h-4 w-4" />
+          </div>
+          <div className="space-y-2 text-sm leading-relaxed text-foreground">
+            <p>{strategicInsight.summary}</p>
+            <p className="text-muted-foreground">{strategicInsight.action}</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {strategicInsight.tags.map((t) => (
+                <span key={t} className="rounded-md border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground">
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
       <SectionCard
         title="Recomendações da IA"
-        subtitle="Sugestões geradas a partir dos seus dados nas últimas 24h"
-        action={<span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">3 novas</span>}
+        subtitle="Foco em café e soja — derivadas do mock operacional"
+        action={
+          <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+            {aiRecommendations.length} ativas
+          </span>
+        }
       >
         <div className="grid gap-3 md:grid-cols-3">
-          {[
-            {
-              icon: Droplets,
-              title: "Aumentar irrigação",
-              desc: "Talhão 04 com umidade 12% abaixo do ideal. Recomendado +18 mm em 48h.",
-              tone: "primary" as const,
-            },
-            {
-              icon: Beaker,
-              title: "Aplicar potássio",
-              desc: "Análise de solo indica deficiência de K em 23% da área leste.",
-              tone: "warning" as const,
-            },
-            {
-              icon: CloudRain,
-              title: "Monitorar seca",
-              desc: "Modelo prevê 14 dias sem chuva. Antecipar plano de contingência.",
-              tone: "danger" as const,
-            },
-          ].map((r) => {
-            const Icon = r.icon;
+          {aiRecommendations.map((r) => {
+            const Icon = recIcons[r.tone];
             const tone =
               r.tone === "primary"
                 ? "text-primary bg-primary/10"
@@ -208,7 +259,7 @@ function Overview() {
                   ? "text-warning bg-warning/10"
                   : "text-destructive bg-destructive/10";
             return (
-              <div key={r.title} className="rounded-xl border border-border bg-surface/60 p-4 transition-colors hover:border-primary/30">
+              <div key={r.title} className="rounded-lg border border-border bg-surface p-4">
                 <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
                   <Icon className="h-4 w-4" />
                 </div>

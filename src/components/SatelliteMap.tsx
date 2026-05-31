@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /** Stylized satellite + heatmap visual built with SVG. */
 export function SatelliteMap({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl border border-border", className)}>
+    <div className={cn("relative overflow-hidden rounded-lg border border-border", className)}>
       <svg viewBox="0 0 800 450" className="block h-full w-full" preserveAspectRatio="xMidYMid slice">
         <defs>
           <radialGradient id="hot" cx="0.7" cy="0.35" r="0.4">
@@ -73,14 +73,14 @@ export function SatelliteMap({ className, compact = false }: { className?: strin
       </svg>
 
       {/* Legend */}
-      <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-lg border border-border bg-background/70 px-3 py-1.5 text-xs backdrop-blur">
+      <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs">
         <span className="text-muted-foreground">Risco</span>
         <span className="h-2 w-16 rounded-full bg-gradient-to-r from-primary via-warning to-destructive" />
         <span className="text-muted-foreground">Baixo</span>
         <span className="text-muted-foreground">→</span>
         <span className="text-muted-foreground">Alto</span>
       </div>
-      <div className="absolute top-3 right-3 flex flex-col gap-1.5 rounded-lg border border-border bg-background/70 p-1 backdrop-blur">
+      <div className="absolute top-3 right-3 flex flex-col gap-1 rounded-md border border-border bg-background p-1">
         {["+", "−", "3D"].map((s) => (
           <button
             key={s}

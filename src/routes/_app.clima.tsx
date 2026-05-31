@@ -66,7 +66,7 @@ function ClimaPage() {
             return (
               <div
                 key={i}
-                className="flex flex-col items-center rounded-xl border border-border bg-surface/60 p-4 transition-colors hover:border-primary/30"
+                className="flex flex-col items-center rounded-lg border border-border bg-surface p-3"
               >
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{f.d}</p>
                 <Icon className="my-3 h-8 w-8 text-primary" />

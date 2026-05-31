@@ -1,0 +1,142 @@
+PREVAGRO CLIMATE — RESUMO DA STACK E BIBLIOTECAS
+================================================
+Documento em linguagem natural. Atualizado com base no estado atual do repositório.
+
+
+O QUE É ESTE PROJETO
+--------------------
+• Dashboard web para inteligência climática e agrícola (Prevagro).
+• Foco em visualização de dados: clima, solo, culturas, alertas, relatórios e mapa geoespacial.
+• Interface escura (dark mode), pensada para uso em desktop, com sidebar e páginas modulares.
+• Dados climáticos e geoespaciais ainda são majoritariamente mock; a arquitetura já prepara troca por APIs reais.
+
+
+STACK PRINCIPAL (VISÃO GERAL)
+-----------------------------
+• Linguagem: TypeScript (tipagem estática em todo o front e partes do servidor).
+• Framework de UI: React 19.
+• Meta-framework / SSR: TanStack Start (sobre TanStack Router), com renderização no servidor via Nitro.
+• Bundler e dev server: Vite 7.
+• Estilos: Tailwind CSS v4 (integrado ao Vite).
+• Componentes de interface: padrão shadcn/ui (Radix UI + utilitários).
+• Mapas: Mapbox GL JS + deck.gl (camadas de calor, geometria e colunas 3D).
+• Gráficos: Recharts.
+• Testes: Vitest.
+• Qualidade de código: ESLint + Prettier.
+
+
+CAMADA DE APLICAÇÃO E ROTEAMENTO
+--------------------------------
+• TanStack Start — estrutura full-stack: páginas, layout, SSR e build de produção.
+• TanStack Router — rotas tipadas em arquivo (file-based routing) em src/routes/.
+• TanStack React Query — pronto para cache e fetch de dados assíncronos (ainda pouco usado nas telas mock).
+• Nitro — motor de servidor usado no build; entry customizado em src/server.ts.
+• Config Vite via @lovable.dev/vite-tanstack-config — template Lovable com plugins já integrados (não duplicar manualmente).
+
+
+INTERFACE E DESIGN SYSTEM
+-------------------------
+• Tailwind CSS v4 — utilitários de layout, cores, tipografia e responsividade.
+• tw-animate-css — animações CSS auxiliares.
+• shadcn/ui (estilo "new-york") — botões, cards, sliders, dialogs, sidebar, etc. em src/components/ui/.
+• Radix UI — primitivos acessíveis (accordion, dialog, dropdown, tabs, tooltip, etc.).
+• class-variance-authority (cva) — variantes de componentes (ex.: botão outline vs solid).
+• clsx + tailwind-merge — função cn() para combinar classes Tailwind sem conflito.
+• Lucide React — ícones (sidebar, KPIs, controles do mapa).
+• Sonner — toasts/notificações.
+• Vaul — drawer mobile.
+• cmdk — command palette (padrão shadcn).
+• react-resizable-panels — painéis redimensionáveis.
+• embla-carousel-react — carrosséis.
+• Componentes próprios: layout (Sidebar, Header), ui-bits (KpiCard, PageHeader), GeoMap, MapLegend, SatelliteMap (preview SVG no dashboard).
+
+
+MAPA E VISUALIZAÇÃO GEOESPACIAL
+-------------------------------
+• Mapbox GL JS — mapa base (satélite, relevo, escuro); token em VITE_MAPBOX_TOKEN (.env.local).
+• deck.gl (@deck.gl/core, layers, aggregation-layers, mapbox) — overlay WebGL sobre o Mapbox:
+  - HeatmapLayer — camadas de calor (temperatura, umidade, risco).
+  - GeoJsonLayer — polígono do perímetro da fazenda colorido por métrica.
+  - ColumnLayer — coluna 3D de produtividade no centro da área.
+• MapboxOverlay (deck.gl/mapbox) — integração deck + Mapbox; recriado ao trocar basemap.
+• Terreno 3D Mapbox (raster-dem) + camada sky — ativados no modo "Visão 3D".
+• Dados geoespaciais em src/lib/geo/:
+  - farm-data.ts — centro da fazenda (Daterra, Patrocínio/MG), perímetro único (placeholder), métricas agregadas, gerador de pontos para heatmap.
+  - map-layers.ts — metadados das camadas (Vegetação, Temperatura, Umidade, Solo, Risco, Produtividade), modos de visualização e basemaps.
+  - map-colors.ts — escalas de cor (NDVI, temp, umidade, risco, solo, produtividade).
+• Página principal do mapa: src/routes/_app.mapa.tsx (controles de basemap, modo viz, opacidade, camadas).
+
+
+GRÁFICOS E DADOS NAS TELAS
+--------------------------
+• Recharts — gráficos de barras e linhas (ex.: histórico de chuva e temperatura em /clima).
+• Dados mock gerados no client (Math.random, arrays fixos) até integração com backend.
+
+
+FORMULÁRIOS E VALIDAÇÃO
+-----------------------
+• react-hook-form — formulários controlados.
+• Zod — schemas de validação.
+• @hookform/resolvers — ponte Zod + react-hook-form.
+• react-day-picker + date-fns — seleção e manipulação de datas.
+
+
+ESTRUTURA DE PASTAS (RESUMO)
+----------------------------
+• src/routes/ — páginas: /, /mapa, /clima, /solo, /culturas, /analises, /alertas, /relatorios, /configuracoes.
+• src/components/ — UI reutilizável, layout, mapa.
+• src/lib/ — utilitários, navegação, geo, config de servidor, captura de erros.
+• src/hooks/ — hooks React (ex.: use-mobile).
+• src/styles.css — tokens CSS e tema global Tailwind/shadcn.
+• vitest.config.ts — config de testes isolada (sem plugins SSR do TanStack).
+• .env.local — variáveis locais (Mapbox token); .env.example como referência.
+
+
+TESTES (TDD)
+------------
+• Vitest — runner de testes unitários.
+• Scripts: npm test (execução única), npm run test:watch (modo watch).
+• Testes atuais em src/lib/geo/:
+  - farm-data.test.ts — coordenadas da fazenda, perímetro, heat points dentro do polígono.
+  - map-layers.test.ts — resolução de modos de visualização e legendas.
+  - map-colors.test.ts — normalização de cores e utilitários RGBA.
+
+
+FERRAMENTAS DE DESENVOLVIMENTO
+------------------------------
+• TypeScript 5.8 — compilação e checagem de tipos (npx tsc --noEmit).
+• ESLint 9 + typescript-eslint + plugins React — lint.
+• Prettier — formatação (npm run format).
+• @types/react, @types/react-dom, @types/mapbox-gl, @types/node — tipos.
+• vite-tsconfig-paths — alias @/ apontando para src/.
+
+
+SCRIPTS NPM
+-----------
+• npm run dev — servidor de desenvolvimento Vite.
+• npm run build — build de produção.
+• npm run preview — preview do build.
+• npm run lint — ESLint.
+• npm run format — Prettier em todo o projeto.
+• npm test / npm run test:watch — Vitest.
+
+
+VARIÁVEIS DE AMBIENTE
+---------------------
+• VITE_MAPBOX_TOKEN — token público Mapbox (pk....); obrigatório para o mapa funcionar.
+• Arquivo .env.local não vai para o git; use .env.example como modelo.
+
+
+ORIGEM DO PROJETO
+-----------------
+• Template Lovable: tanstack_start_ts (TanStack Start + TypeScript).
+• components.json confirma stack shadcn + Tailwind + Lucide.
+
+
+OBSERVAÇÕES IMPORTANTES
+-----------------------
+• O perímetro da fazenda no mapa ainda é placeholder (elipse); substituir por GeoJSON do CAR/SICAR quando disponível.
+• Métricas (NDVI, temp, risco, etc.) são mock centralizadas em FARM_METRICS.
+• Mapbox consome quota do token; restrinja por URL no painel Mapbox em produção.
+• deck.gl e Mapbox carregam só no client (import dinâmico) para não quebrar o SSR.
+• SES / lockdown-install.js no console costuma vir de extensão do browser, não do projeto.

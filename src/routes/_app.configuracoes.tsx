@@ -71,7 +71,7 @@ function ProfileTab() {
   return (
     <SectionCard title="Perfil" subtitle="Suas informações pessoais">
       <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-2xl font-semibold text-primary-foreground">
+        <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted text-xl font-semibold text-foreground">
           JS
         </div>
         <Button variant="outline" size="sm"><Camera className="h-4 w-4" /> Trocar foto</Button>
@@ -84,7 +84,7 @@ function ProfileTab() {
       </div>
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="outline">Cancelar</Button>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Salvar alterações</Button>
+        <Button>Salvar alterações</Button>
       </div>
     </SectionCard>
   );
@@ -169,7 +169,7 @@ function IntegrationsTab() {
               <p className="text-xs text-muted-foreground">{i.s}</p>
             </div>
           </div>
-          <Button variant={i.on ? "outline" : "default"} size="sm" className={cn(!i.on && "bg-primary text-primary-foreground hover:bg-primary/90")}>
+          <Button variant={i.on ? "outline" : "default"} size="sm">
             {i.on ? "Conectado" : "Conectar"}
           </Button>
         </div>
@@ -190,14 +190,14 @@ function SecurityTab() {
               <p className="text-xs text-muted-foreground">Aumente a segurança da sua conta</p>
             </div>
           </div>
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">Ativar</Button>
+          <Button size="sm">Ativar</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Senha atual" type="password" placeholder="••••••••" />
           <Field label="Nova senha" type="password" placeholder="••••••••" />
         </div>
         <div className="flex justify-end">
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Atualizar senha</Button>
+          <Button>Atualizar senha</Button>
         </div>
       </div>
     </SectionCard>
