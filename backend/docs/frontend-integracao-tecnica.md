@@ -21,6 +21,17 @@ Este guia documenta 100% das APIs backend disponiveis para integracao do fronten
 - Formato: JSON
 - Autenticacao: atualmente nao obrigatoria por token (backend usa usuario padrao interno)
 - Erros FastAPI: formato padrao
+- Webhook backend (evento assíncrono):
+  - endpoint configurado para POST em `WEBHOOK_EVENTS_URL`
+  - payload de evento de mapa:
+    ```json
+    { "envio_de": "mapa atualizado" }
+    ```
+  - payload de evento de insight:
+    ```json
+    { "envio_de": "insight gerado" }
+    ```
+  - entrega em modo best-effort (falha no webhook nao derruba o fluxo principal)
 
 Exemplo de erro:
 
@@ -306,6 +317,18 @@ Retorno simplificado:
   - `projected_dry_days_ratio`
   - `heat_risk_score`
   - `water_stress_score`
+
+### Eventos webhook disparados no backend
+
+- `mapa atualizado`:
+  - quando o backend persiste shape/metadata de poligono no monitoramento.
+- `insight gerado`:
+  - quando a LLM conclui uma nova analise e persiste em `farm_ai_predictions`.
+
+Uso recomendado no frontend:
+
+- integrar esse webhook no backend de notificacoes/automacoes;
+- usar para refresh de tela em tempo real (mapa/insights) via seu proprio canal de notificacao.
 
 ---
 

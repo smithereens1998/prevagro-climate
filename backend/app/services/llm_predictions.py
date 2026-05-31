@@ -10,6 +10,7 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.db.database import engine
 from app.integrations.gemini import GeminiClient
+from app.integrations.webhook_notifier import notify_insight_generated_async
 
 settings = get_settings()
 PROMPT_VERSION = "v1.0.0"
@@ -262,4 +263,6 @@ async def generate_prediction(
         "prompt_version": PROMPT_VERSION,
         "model_name": settings.gemini_model,
     }
+    # Best-effort webhook notification; keep prediction flow independent.
+    await notify_insight_generated_async()
     return prediction
