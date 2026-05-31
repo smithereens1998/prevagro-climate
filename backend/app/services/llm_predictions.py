@@ -278,6 +278,7 @@ async def generate_prediction(
         "prompt_version": PROMPT_VERSION,
         "model_name": settings.gemini_model,
     }
-    # Best-effort webhook notification; keep prediction flow independent.
-    await notify_insight_generated_async()
+    # Send webhook only after analysis is generated and persisted.
+    webhook_sent = await notify_insight_generated_async()
+    prediction["metadata"]["webhook_insight_sent"] = webhook_sent
     return prediction

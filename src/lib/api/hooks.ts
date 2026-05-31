@@ -1,11 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFarmLocation } from "@/lib/farm/farm-context";
-import { fetchAgroPolygons, fetchAgroSoil, fetchAgroWeather, fetchSatelliteHistory } from "./agromonitoring";
+import {
+  fetchAgroPolygons,
+  fetchAgroSoil,
+  fetchAgroWeather,
+  fetchSatelliteHistory,
+} from "./agromonitoring";
 import {
   createCoordinate,
   fetchCoordinates,
   fetchLatestFarmIdentity,
   fetchLatestMonitoringObservation,
+  refreshSoilAnalysis,
   updateCoordinate,
 } from "./farm-monitoring";
 import { fetchDbHealth, fetchHealth } from "./health";
@@ -79,6 +85,36 @@ export const useLatestMonitoringObservation = (query?: CoordinateQuery) => {
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 404) return false;
       return retryGet(failureCount, error);
+    },
+  });
+};
+
+export const useRefreshSoilMutation = () => {
+  const queryClient = useQueryClient();
+  const location = useFarmLocation();
+
+  return useMutation({
+    mutationFn: () => {
+      if (location.latitude == null || location.longitude == null) {
+        throw new Error("Selecione uma fazenda antes de atualizar o solo");
+      }
+      return refreshSoilAnalysis({
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+    },
+    onSuccess: () => {
+      if (location.latitude != null && location.longitude != null) {
+        void queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.agroSoil(location.latitude, location.longitude),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.farmObservationLatest(location),
+        });
+      }
+      void queryClient.invalidateQueries({
+        queryKey: ["farm-monitoring", "observations", "latest"],
+      });
     },
   });
 };
@@ -182,7 +218,10 @@ export const useAgroSoil = (latitude: number, longitude: number, enabled = true)
 
 const SATELLITE_DAYS_DEFAULT = 90;
 
-export const useSatelliteHistory = (polygonId: string | null | undefined, days = SATELLITE_DAYS_DEFAULT) => {
+export const useSatelliteHistory = (
+  polygonId: string | null | undefined,
+  days = SATELLITE_DAYS_DEFAULT,
+) => {
   const end = Math.floor(Date.now() / 1000);
   const start = end - days * 24 * 60 * 60;
 
@@ -210,11 +249,8 @@ export const useCreateCoordinateMutation = () => {
 export const useUpdateCoordinateMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: {
-      coordinateId: number;
-      payload: CoordinatePayload;
-      polygonId?: string;
-    }) => updateCoordinate(input.coordinateId, input.payload, input.polygonId),
+    mutationFn: (input: { coordinateId: number; payload: CoordinatePayload; polygonId?: string }) =>
+      updateCoordinate(input.coordinateId, input.payload, input.polygonId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: apiQueryKeys.coordinates });
       void queryClient.invalidateQueries({ queryKey: apiQueryKeys.farmLatest });

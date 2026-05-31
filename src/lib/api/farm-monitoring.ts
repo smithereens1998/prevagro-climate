@@ -1,6 +1,13 @@
 import { ApiError, apiRequest } from "./client";
 import { normalizeFarmCoordinate, normalizeFarmLatestIdentity } from "./normalize";
-import type { CoordinatePayload, CoordinateQuery, FarmCoordinate, FarmLatestIdentity, FarmMonitoringObservation } from "./types";
+import type {
+  CoordinatePayload,
+  CoordinateQuery,
+  FarmCoordinate,
+  FarmLatestIdentity,
+  FarmMonitoringObservation,
+  SoilAnalysisUpdateResponse,
+} from "./types";
 
 export const fetchCoordinates = async () => {
   const rows = await apiRequest<FarmCoordinate[]>("/farm-monitoring/coordinates");
@@ -36,14 +43,14 @@ export const fetchLatestMonitoringObservation = async (query?: CoordinateQuery) 
 };
 
 export const createCoordinate = async (payload: CoordinatePayload, polygonId?: string) => {
-  const result = await apiRequest<{ coordinate: FarmCoordinate; polygon_sync: Record<string, unknown> }>(
-    "/farm-monitoring/coordinates",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-      params: polygonId ? { polygonId } : undefined,
-    },
-  );
+  const result = await apiRequest<{
+    coordinate: FarmCoordinate;
+    polygon_sync: Record<string, unknown>;
+  }>("/farm-monitoring/coordinates", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    params: polygonId ? { polygonId } : undefined,
+  });
   return { ...result, coordinate: normalizeFarmCoordinate(result.coordinate) };
 };
 
@@ -52,14 +59,14 @@ export const updateCoordinate = async (
   payload: CoordinatePayload,
   polygonId?: string,
 ) => {
-  const result = await apiRequest<{ coordinate: FarmCoordinate; polygon_sync: Record<string, unknown> }>(
-    `/farm-monitoring/coordinates/${coordinateId}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-      params: polygonId ? { polygonId } : undefined,
-    },
-  );
+  const result = await apiRequest<{
+    coordinate: FarmCoordinate;
+    polygon_sync: Record<string, unknown>;
+  }>(`/farm-monitoring/coordinates/${coordinateId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+    params: polygonId ? { polygonId } : undefined,
+  });
   return { ...result, coordinate: normalizeFarmCoordinate(result.coordinate) };
 };
 
@@ -68,3 +75,12 @@ export const deleteCoordinate = (coordinateId: number) =>
     `/farm-monitoring/coordinates/${coordinateId}`,
     { method: "DELETE" },
   );
+
+export const refreshSoilAnalysis = (query: Required<CoordinateQuery>) =>
+  apiRequest<SoilAnalysisUpdateResponse>("/farm-monitoring/soil", {
+    method: "PUT",
+    params: {
+      latitude: query.latitude,
+      longitude: query.longitude,
+    },
+  });
