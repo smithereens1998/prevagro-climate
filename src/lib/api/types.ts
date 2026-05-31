@@ -65,6 +65,7 @@ export type HorizonFeaturesSnapshot = {
 
 export type HorizonHistoryPoint = {
   reference_date: string;
+  horizon_days?: number;
   horizon_months: number;
   projected_avg_temp_c: number | null;
   projected_total_precip_mm: number | null;
@@ -187,4 +188,11 @@ export type SatelliteHistoryItem = {
 export type CoordinateQuery = {
   latitude?: number;
   longitude?: number;
+};
+
+export type SoilAnalysisUpdateResponse = {
+  status: string;
+  analysis: string;
+  latitude: number;
+  longitude: number;
 };
