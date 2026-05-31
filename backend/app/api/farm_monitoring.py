@@ -10,6 +10,7 @@ from app.integrations.agromonitoring import AgroMonitoringClient
 from app.services.farm_monitoring import (
     add_coordinate,
     delete_coordinate,
+    get_latest_farm_identity,
     list_coordinates,
     update_coordinate,
     upsert_polygon_shape,
@@ -141,6 +142,14 @@ async def put_polygon_shape(
 @router.get("/coordinates")
 def get_coordinates() -> list[dict[str, Any]]:
     return list_coordinates()
+
+
+@router.get("/latest")
+def get_latest_farm_monitoring_identity() -> dict[str, Any]:
+    latest = get_latest_farm_identity()
+    if not latest:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No farm monitoring data found")
+    return latest
 
 
 @router.post("/coordinates", status_code=status.HTTP_201_CREATED)

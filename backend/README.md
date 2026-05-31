@@ -67,6 +67,7 @@ Farm monitoring persistence routes:
 - `PUT /farm-monitoring/satellite/history?polygonId={id}&start={unix}&end={unix}&latitude={lat}&longitude={lon}`
 - `PUT /farm-monitoring/vegetation/indices?polygonId={id}&start={unix}&end={unix}&latitude={lat}&longitude={lon}`
 - `GET /farm-monitoring/coordinates`
+- `GET /farm-monitoring/latest` (latest `farm_name`, `farm_location`, `latitude`, `longitude`)
 - `POST /farm-monitoring/coordinates?polygonId={id}` (optional `polygonId`; auto-sync polygon)
 - `PUT /farm-monitoring/coordinates/{coordinate_id}?polygonId={id}` (optional `polygonId`; auto-sync polygon)
 - `DELETE /farm-monitoring/coordinates/{coordinate_id}`
