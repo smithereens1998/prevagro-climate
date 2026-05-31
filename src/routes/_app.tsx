@@ -1,10 +1,17 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { FarmGuard } from "@/components/farm/FarmGuard";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { SidebarProvider, useSidebarLayout } from "@/components/layout/sidebar-context";
+import { FarmProvider } from "@/lib/farm/farm-context";
+import { requireAuth } from "@/lib/auth/guard";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app")({
+  beforeLoad: () => {
+    requireAuth();
+  },
   component: AppLayout,
 });
 
@@ -31,8 +38,14 @@ function AppLayoutContent() {
 
 function AppLayout() {
   return (
-    <SidebarProvider>
-      <AppLayoutContent />
-    </SidebarProvider>
+    <AuthGuard>
+      <FarmProvider>
+        <FarmGuard>
+          <SidebarProvider>
+            <AppLayoutContent />
+          </SidebarProvider>
+        </FarmGuard>
+      </FarmProvider>
+    </AuthGuard>
   );
 }

@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppSoloRouteImport } from './routes/_app.solo'
@@ -18,7 +19,14 @@ import { Route as AppCulturasRouteImport } from './routes/_app.culturas'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppClimaRouteImport } from './routes/_app.clima'
 import { Route as AppAlertasRouteImport } from './routes/_app.alertas'
+import { Route as AppFazendasIndexRouteImport } from './routes/_app.fazendas.index'
+import { Route as AppFazendasNovaRouteImport } from './routes/_app.fazendas.nova'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -63,9 +71,20 @@ const AppAlertasRoute = AppAlertasRouteImport.update({
   path: '/alertas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFazendasIndexRoute = AppFazendasIndexRouteImport.update({
+  id: '/fazendas/',
+  path: '/fazendas/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFazendasNovaRoute = AppFazendasNovaRouteImport.update({
+  id: '/fazendas/nova',
+  path: '/fazendas/nova',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
   '/alertas': typeof AppAlertasRoute
   '/clima': typeof AppClimaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -73,8 +92,11 @@ export interface FileRoutesByFullPath {
   '/mapa': typeof AppMapaRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/solo': typeof AppSoloRoute
+  '/fazendas/nova': typeof AppFazendasNovaRoute
+  '/fazendas/': typeof AppFazendasIndexRoute
 }
 export interface FileRoutesByTo {
+  '/login': typeof LoginRoute
   '/alertas': typeof AppAlertasRoute
   '/clima': typeof AppClimaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -83,10 +105,13 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AppRelatoriosRoute
   '/solo': typeof AppSoloRoute
   '/': typeof AppIndexRoute
+  '/fazendas/nova': typeof AppFazendasNovaRoute
+  '/fazendas': typeof AppFazendasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
   '/_app/alertas': typeof AppAlertasRoute
   '/_app/clima': typeof AppClimaRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
@@ -95,11 +120,14 @@ export interface FileRoutesById {
   '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/solo': typeof AppSoloRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/fazendas/nova': typeof AppFazendasNovaRoute
+  '/_app/fazendas/': typeof AppFazendasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/alertas'
     | '/clima'
     | '/configuracoes'
@@ -107,8 +135,11 @@ export interface FileRouteTypes {
     | '/mapa'
     | '/relatorios'
     | '/solo'
+    | '/fazendas/nova'
+    | '/fazendas/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/login'
     | '/alertas'
     | '/clima'
     | '/configuracoes'
@@ -117,9 +148,12 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/solo'
     | '/'
+    | '/fazendas/nova'
+    | '/fazendas'
   id:
     | '__root__'
     | '/_app'
+    | '/login'
     | '/_app/alertas'
     | '/_app/clima'
     | '/_app/configuracoes'
@@ -128,14 +162,24 @@ export interface FileRouteTypes {
     | '/_app/relatorios'
     | '/_app/solo'
     | '/_app/'
+    | '/_app/fazendas/nova'
+    | '/_app/fazendas/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -199,6 +243,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAlertasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/fazendas/': {
+      id: '/_app/fazendas/'
+      path: '/fazendas'
+      fullPath: '/fazendas/'
+      preLoaderRoute: typeof AppFazendasIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fazendas/nova': {
+      id: '/_app/fazendas/nova'
+      path: '/fazendas/nova'
+      fullPath: '/fazendas/nova'
+      preLoaderRoute: typeof AppFazendasNovaRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -211,6 +269,8 @@ interface AppRouteChildren {
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppSoloRoute: typeof AppSoloRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppFazendasNovaRoute: typeof AppFazendasNovaRoute
+  AppFazendasIndexRoute: typeof AppFazendasIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -222,12 +282,15 @@ const AppRouteChildren: AppRouteChildren = {
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppSoloRoute: AppSoloRoute,
   AppIndexRoute: AppIndexRoute,
+  AppFazendasNovaRoute: AppFazendasNovaRoute,
+  AppFazendasIndexRoute: AppFazendasIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

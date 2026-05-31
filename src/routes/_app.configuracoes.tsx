@@ -1,9 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
-import { Camera, Bell, Shield, Plug, MapPin } from "lucide-react";
+import { Camera, Bell, Shield, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFarm } from "@/lib/farm/farm-context";
+import { formatCoordinatePair } from "@/lib/api/normalize";
+import { useUpdateCoordinateMutation } from "@/lib/api/hooks";
+import { ApiError } from "@/lib/api/client";
 
 export const Route = createFileRoute("/_app/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações · Prevagro" }] }),
@@ -91,16 +96,112 @@ function ProfileTab() {
 }
 
 function FazendaTab() {
+  const { farms, selectedFarm, selectFarm, refetchFarms } = useFarm();
+  const updateFarm = useUpdateCoordinateMutation();
+  const [name, setName] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!selectedFarm) return;
+    setName(selectedFarm.name);
+    setLatitude(String(selectedFarm.latitude));
+    setLongitude(String(selectedFarm.longitude));
+    setError(null);
+    setSaved(false);
+  }, [selectedFarm]);
+
+  if (farms.length === 0) {
+    return (
+      <SectionCard title="Fazenda" subtitle="Nenhuma propriedade cadastrada">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Cadastre uma fazenda para vincular coordenadas e polígonos ao monitoramento.
+        </p>
+        <Button asChild>
+          <Link to="/fazendas/nova">Cadastrar fazenda</Link>
+        </Button>
+      </SectionCard>
+    );
+  }
+
+  const handleSaveFarm = async () => {
+    if (!selectedFarm) return;
+    setError(null);
+    setSaved(false);
+
+    const lat = Number(latitude.replace(",", "."));
+    const lon = Number(longitude.replace(",", "."));
+
+    if (!name.trim()) {
+      setError("Informe o nome da fazenda.");
+      return;
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      setError("Latitude e longitude devem ser números válidos.");
+      return;
+    }
+
+    try {
+      const result = await updateFarm.mutateAsync({
+        coordinateId: selectedFarm.id,
+        payload: { name: name.trim(), latitude: lat, longitude: lon },
+      });
+      selectFarm(result.coordinate);
+      refetchFarms();
+      setSaved(true);
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Não foi possível salvar a fazenda.",
+      );
+    }
+  };
+
   return (
-    <SectionCard title="Fazenda" subtitle="Dados da propriedade">
+    <SectionCard title="Fazenda ativa" subtitle="Tenant selecionado no header">
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Nome da Fazenda" defaultValue="Fazenda São João" />
-        <Field label="Área Total (ha)" defaultValue="1248" />
-        <Field label="Estado" defaultValue="Mato Grosso" />
-        <Field label="Município" defaultValue="Sorriso" />
+        <Field label="Nome da Fazenda" value={name} onChange={(e) => setName(e.target.value)} />
+        <Field label="ID interno" defaultValue={selectedFarm ? String(selectedFarm.id) : ""} readOnly />
+        <Field label="Latitude" value={latitude} onChange={(e) => setLatitude(e.target.value)} inputMode="decimal" />
+        <Field
+          label="Longitude"
+          value={longitude}
+          onChange={(e) => setLongitude(e.target.value)}
+          inputMode="decimal"
+        />
       </div>
       <div className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-surface/60 p-3 text-xs text-muted-foreground">
-        <MapPin className="h-4 w-4 text-primary" /> Coordenadas: -12.5454, -55.7212
+        Coordenadas atuais:{" "}
+        {selectedFarm
+          ? formatCoordinatePair(selectedFarm.latitude, selectedFarm.longitude, 6)
+          : "—"}
+      </div>
+      {error && (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+      {saved && (
+        <p className="mt-3 text-sm text-primary" role="status">
+          Fazenda atualizada com sucesso.
+        </p>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button size="sm" onClick={handleSaveFarm} disabled={updateFarm.isPending}>
+          {updateFarm.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Salvar fazenda
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/fazendas">Gerenciar fazendas</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/fazendas/nova">Nova fazenda</Link>
+        </Button>
       </div>
     </SectionCard>
   );

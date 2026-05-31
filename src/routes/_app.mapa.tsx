@@ -6,7 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Box, Download, Layers, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FARM_METRICS, FARM_PERIMETER, getRiskScore, type Risco } from "@/lib/geo/farm-data";
+import {
+  useAgroSoil,
+  useAgroWeather,
+  useHorizonFeatures,
+  useSatelliteHistory,
+} from "@/lib/api/hooks";
+import { useFarm, useFarmLocation } from "@/lib/farm/farm-context";
+import { useActivePolygon } from "@/lib/farm/use-active-polygon";
+import { horizonToRiskScore } from "@/lib/api/adapters";
+import { averageNdvi } from "@/lib/api/overview-adapters";
+import { centroidFromFeature } from "@/lib/farm/polygon-utils";
 import {
   DEFAULT_ACTIVE_LAYERS,
   LAYER_IDS,
@@ -33,12 +43,6 @@ const BASEMAPS: { id: BasemapId; label: string }[] = [
   { id: "dark", label: "Escuro" },
 ];
 
-const riscoTone: Record<Risco, string> = {
-  Baixo: "text-primary",
-  Médio: "text-warning",
-  Alto: "text-destructive",
-};
-
 function MapaPage() {
   const [active, setActive] = useState<string[]>([...DEFAULT_ACTIVE_LAYERS]);
   const [basemap, setBasemap] = useState<BasemapId>("satellite");
@@ -46,19 +50,57 @@ function MapaPage() {
   const [layerOpacity, setLayerOpacity] = useState(0.85);
   const [is3D, setIs3D] = useState(false);
 
+  const { selectedFarm, farmDisplayName, farmLocationLabel } = useFarm();
+  const location = useFarmLocation();
+  const activePolygon = useActivePolygon();
+  const { latitude, longitude } = location;
+  const hasLocation = latitude != null && longitude != null;
+
+  const weather = useAgroWeather(latitude ?? 0, longitude ?? 0, hasLocation);
+  const soil = useAgroSoil(latitude ?? 0, longitude ?? 0, hasLocation);
+  const horizon = useHorizonFeatures();
+  const satellite = useSatelliteHistory(activePolygon.polygonId);
+
   const toggle = (l: string) =>
     setActive((a) => (a.includes(l) ? a.filter((x) => x !== l) : [...a, l]));
 
-  const farm = FARM_PERIMETER.properties;
-  const m = FARM_METRICS;
+  const farmLabel = farmDisplayName || activePolygon.polygon?.name || "Fazenda";
+  const polygonName = activePolygon.polygon?.name;
+  const apiRisk = horizon.isSuccess ? horizonToRiskScore(horizon.data) : null;
+  const riskScore = apiRisk;
+  const riskLabel =
+    riskScore != null
+      ? `${riskScore}/100`
+      : horizon.isError || weather.isError
+        ? "—"
+        : "—";
+  const temp =
+    weather.data?.main?.temp_celsius != null
+      ? weather.data.main.temp_celsius
+      : null;
+  const umidade =
+    weather.data?.main?.humidity != null ? Math.round(weather.data.main.humidity) : null;
+  const soloMoisture = soil.data?.moisture;
+  const soloLabel =
+    soloMoisture != null ? `${Math.round(soloMoisture * 100)}% umid.` : "—";
+  const ndviAvg = satellite.data ? averageNdvi(satellite.data) : null;
+  const areaHa = activePolygon.areaHa;
+
   const metrics = [
-    { k: "Área", v: `${farm.hectares} ha` },
-    { k: "Risco", v: `${m.risco} (${getRiskScore()}/100)`, tone: riscoTone[m.risco] },
-    { k: "NDVI", v: m.ndvi.toFixed(2) },
-    { k: "Temperatura", v: `${m.temp.toFixed(1)} °C` },
-    { k: "Umidade", v: `${m.umidade} %` },
-    { k: "Solo", v: `${Math.round(m.soloScore * 100)}/100` },
+    { k: "Área", v: areaHa != null ? `${areaHa} ha` : "—" },
+    { k: "Risco", v: riskLabel },
+    { k: "NDVI", v: ndviAvg != null ? ndviAvg.toFixed(2) : "—" },
+    { k: "Temperatura", v: temp != null ? `${temp.toFixed(1)} °C` : "—" },
+    { k: "Umidade", v: umidade != null ? `${umidade} %` : "—" },
+    { k: "Solo", v: soloLabel },
   ];
+
+  const polygonHint =
+    activePolygon.polygonId != null
+      ? ` · Polígono ${polygonName ?? activePolygon.polygonId}`
+      : activePolygon.isLoading
+        ? " · Carregando polígono…"
+        : " · Sem polígono vinculado";
 
   return (
     <>
@@ -93,23 +135,32 @@ function MapaPage() {
             layerOpacity={layerOpacity}
             is3D={is3D}
             onToggle3D={() => setIs3D((v) => !v)}
+            perimeterFeature={activePolygon.feature}
+            mapBounds={activePolygon.bounds}
+            mapMaxBounds={activePolygon.maxBounds}
+            centroid={centroidFromFeature(activePolygon.feature)}
+            farmLabel={farmLabel}
+            areaHa={areaHa}
+            riskScore={riskScore}
           />
 
           <section className="panel rounded-lg p-4">
             <p className="text-xs text-muted-foreground">Perímetro analisado</p>
-            <h3 className="mt-1 text-lg font-semibold text-foreground">{farm.nome}</h3>
+            <h3 className="mt-1 text-lg font-semibold text-foreground">{farmLabel}</h3>
             <p className="text-xs text-muted-foreground">
-              {farm.municipio} · {farm.cultura} · Safra {farm.safra}
+              {farmLocationLabel ??
+                (polygonName ? `Polígono AgroMonitoring · ${polygonName}` : "Coordenadas da fazenda ativa")}
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{farm.fonte}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Dados via API
+              {polygonHint}
+            </p>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
               {metrics.map((item) => (
                 <div key={item.k} className="rounded-lg border border-border bg-surface p-3">
                   <dt className="text-xs text-muted-foreground">{item.k}</dt>
-                  <dd className={cn("mt-1 text-base font-semibold", item.tone ?? "text-foreground")}>
-                    {item.v}
-                  </dd>
+                  <dd className="mt-1 text-base font-semibold text-foreground">{item.v}</dd>
                 </div>
               ))}
             </dl>
@@ -118,99 +169,94 @@ function MapaPage() {
 
         <aside className="flex flex-col gap-4">
           <section className="panel rounded-lg p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <MapIcon className="h-4 w-4 text-primary" /> Basemap
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+              <Layers className="h-4 w-4 text-primary" />
+              Camadas
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {BASEMAPS.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  aria-pressed={basemap === b.id}
-                  onClick={() => setBasemap(b.id)}
-                  className={cn(
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
-                    basemap === b.id
-                      ? "border-primary/40 bg-primary/10 text-foreground"
-                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="panel rounded-lg p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Layers className="h-4 w-4 text-primary" /> Visualização
-            </div>
-            <div className="mb-4 grid grid-cols-2 gap-1.5">
-              {VIZ_MODES.map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  title={mode.hint}
-                  aria-pressed={vizMode === mode.id}
-                  onClick={() => setVizMode(mode.id)}
-                  className={cn(
-                    "rounded-lg border px-2 py-2 text-left text-xs transition-colors",
-                    vizMode === mode.id
-                      ? "border-primary/40 bg-primary/10 text-foreground"
-                      : "border-border bg-surface text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <span className="font-medium">{mode.label}</span>
-                  <span className="mt-0.5 block text-[10px] opacity-70">{mode.hint}</span>
-                </button>
-              ))}
-            </div>
-
-            <label className="mb-1 block text-xs text-muted-foreground">
-              Opacidade das camadas · {Math.round(layerOpacity * 100)}%
-            </label>
-            <Slider
-              value={[layerOpacity * 100]}
-              min={20}
-              max={100}
-              step={5}
-              onValueChange={([v]) => setLayerOpacity(v / 100)}
-              aria-label="Opacidade das camadas de dados"
-            />
-          </section>
-
-          <section className="panel rounded-lg p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Layers className="h-4 w-4 text-primary" /> Camadas de dados
-            </div>
-            <div className="space-y-1.5">
-              {LAYER_IDS.map((l) => {
-                const on = active.includes(l);
-                const viz = LAYER_META[l].defaultViz;
+            <div className="flex flex-col gap-2">
+              {LAYER_IDS.map((id) => {
+                const meta = LAYER_META[id];
+                const on = active.includes(id);
                 return (
                   <button
-                    key={l}
+                    key={id}
                     type="button"
-                    onClick={() => toggle(l)}
+                    onClick={() => toggle(id)}
+                    aria-pressed={on}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
+                      "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                       on
                         ? "border-primary/40 bg-primary/10 text-foreground"
-                        : "border-border bg-surface text-muted-foreground hover:text-foreground",
+                        : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <span>
-                      {l}
-                      <span className="ml-2 text-[10px] opacity-60">{viz}</span>
-                    </span>
-                    <span className={cn("h-1.5 w-8 rounded-full", on ? "bg-primary" : "bg-muted")} />
+                    <span>{meta.label}</span>
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: rgbToHex(meta.geometryColor()) }}
+                    />
                   </button>
                 );
               })}
             </div>
           </section>
+
+          <section className="panel rounded-lg p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+              <MapIcon className="h-4 w-4 text-primary" />
+              Basemap
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {BASEMAPS.map((b) => (
+                <Button
+                  key={b.id}
+                  size="sm"
+                  variant={basemap === b.id ? "default" : "outline"}
+                  onClick={() => setBasemap(b.id)}
+                >
+                  {b.label}
+                </Button>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel rounded-lg p-4">
+            <p className="mb-2 text-sm font-medium text-foreground">Modo de visualização</p>
+            <div className="flex flex-col gap-2">
+              {VIZ_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  onClick={() => setVizMode(mode.id)}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    vizMode === mode.id
+                      ? "border-primary/40 bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span className="font-medium">{mode.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{mode.hint}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel rounded-lg p-4">
+            <p className="mb-3 text-sm font-medium text-foreground">Opacidade das camadas</p>
+            <Slider
+              value={[layerOpacity * 100]}
+              onValueChange={(v) => setLayerOpacity(v[0] / 100)}
+              max={100}
+              step={5}
+            />
+          </section>
         </aside>
       </div>
     </>
   );
+}
+
+function rgbToHex([r, g, b]: [number, number, number]) {
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }

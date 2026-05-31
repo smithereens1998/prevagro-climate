@@ -342,14 +342,15 @@ def add_coordinate(
     name: str,
     latitude: float,
     longitude: float,
+    polygon_id: str | None = None,
     user_id: int | None = None,
 ) -> dict[str, Any]:
     resolved_user_id = _resolve_user_id(user_id)
     sql = text(
         """
-        INSERT INTO public.farm_coordinates (user_id, name, latitude, longitude, updated_at)
-        VALUES (:user_id, :name, :latitude, :longitude, NOW())
-        RETURNING id, user_id, name, latitude, longitude, created_at, updated_at
+        INSERT INTO public.farm_coordinates (user_id, name, latitude, longitude, polygon_id, updated_at)
+        VALUES (:user_id, :name, :latitude, :longitude, :polygon_id, NOW())
+        RETURNING id, user_id, name, latitude, longitude, polygon_id, created_at, updated_at
         """
     )
     with engine.begin() as connection:
@@ -360,6 +361,7 @@ def add_coordinate(
                 "name": name,
                 "latitude": latitude,
                 "longitude": longitude,
+                "polygon_id": polygon_id,
             },
         ).mappings().one()
     return dict(row)
@@ -368,7 +370,7 @@ def add_coordinate(
 def list_coordinates() -> list[dict[str, Any]]:
     sql = text(
         """
-        SELECT id, user_id, name, latitude, longitude, created_at, updated_at
+        SELECT id, user_id, name, latitude, longitude, polygon_id, created_at, updated_at
         FROM public.farm_coordinates
         ORDER BY id ASC
         """
@@ -410,6 +412,7 @@ def update_coordinate(
     name: str,
     latitude: float,
     longitude: float,
+    polygon_id: str | None = None,
     user_id: int | None = None,
 ) -> dict[str, Any] | None:
     resolved_user_id = _resolve_user_id(user_id)
@@ -420,9 +423,10 @@ def update_coordinate(
             name = :name,
             latitude = :latitude,
             longitude = :longitude,
+            polygon_id = COALESCE(:polygon_id, polygon_id),
             updated_at = NOW()
         WHERE id = :coordinate_id
-        RETURNING id, user_id, name, latitude, longitude, created_at, updated_at
+        RETURNING id, user_id, name, latitude, longitude, polygon_id, created_at, updated_at
         """
     )
     with engine.begin() as connection:
@@ -434,6 +438,7 @@ def update_coordinate(
                 "name": name,
                 "latitude": latitude,
                 "longitude": longitude,
+                "polygon_id": polygon_id,
             },
         ).mappings().one_or_none()
     return dict(row) if row else None
