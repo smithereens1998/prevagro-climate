@@ -26,6 +26,26 @@ export const resolvePolygonAreaHa = (polygon: AgroMonitoringPolygon | null | und
   return Math.round(polygon.area);
 };
 
+export const polygonCenterLatLon = (polygon: AgroMonitoringPolygon | null | undefined) => {
+  const center = polygon?.center;
+  if (!center || center.length < 2) return null;
+  const [lon, lat] = center;
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+  return { latitude: lat, longitude: lon };
+};
+
+export const polygonMatchesCoordinate = (
+  polygon: AgroMonitoringPolygon | null | undefined,
+  latitude: number,
+  longitude: number,
+  maxDistanceKm = 100,
+) => {
+  const center = polygonCenterLatLon(polygon);
+  if (!center) return false;
+  const dist = distanceKm(latitude, longitude, center.latitude, center.longitude);
+  return dist <= maxDistanceKm;
+};
+
 export const polygonToGeoJsonFeature = (
   polygon: AgroMonitoringPolygon,
   extraProperties: Record<string, unknown> = {},
@@ -142,6 +162,53 @@ export const centroidFromFeature = (feature: GeoJsonFeature | null): [number, nu
   if (!bounds) return null;
   const [[minLon, minLat], [maxLon, maxLat]] = bounds;
   return [(minLon + maxLon) / 2, (minLat + maxLat) / 2];
+};
+
+const metersToLatDegrees = (meters: number) => meters / 111_320;
+
+const metersToLonDegrees = (meters: number, latitude: number) => {
+  const cosLat = Math.cos(toRadians(latitude));
+  if (!Number.isFinite(cosLat) || Math.abs(cosLat) < 0.000001) return metersToLatDegrees(meters);
+  return meters / (111_320 * cosLat);
+};
+
+export const syntheticFeatureFromCoordinate = ({
+  latitude,
+  longitude,
+  farmName,
+  areaHa = 203,
+}: {
+  latitude: number;
+  longitude: number;
+  farmName?: string;
+  areaHa?: number | null;
+}): GeoJsonFeature => {
+  const areaMeters = Math.max((areaHa ?? 203) * 10_000, 50_000);
+  const sideMeters = Math.sqrt(areaMeters);
+  const halfLat = metersToLatDegrees(sideMeters / 2);
+  const halfLon = metersToLonDegrees(sideMeters / 2, latitude);
+
+  return {
+    type: "Feature",
+    properties: {
+      name: farmName ?? "Fazenda",
+      polygonId: null,
+      areaHa: areaHa ?? null,
+      synthetic: true,
+    },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [longitude - halfLon, latitude - halfLat],
+          [longitude + halfLon, latitude - halfLat],
+          [longitude + halfLon, latitude + halfLat],
+          [longitude - halfLon, latitude + halfLat],
+          [longitude - halfLon, latitude - halfLat],
+        ],
+      ],
+    },
+  };
 };
 
 export const riskScoreToFillColor = (score: number | null | undefined) => {

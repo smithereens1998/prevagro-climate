@@ -9,6 +9,8 @@ import {
   resolveActivePolygon,
   resolvePolygonAreaHa,
   polygonToGeoJsonFeature,
+  polygonMatchesCoordinate,
+  syntheticFeatureFromCoordinate,
   boundsFromGeoJson,
   paddedBounds,
   type GeoJsonFeature,
@@ -48,20 +50,42 @@ export const useActivePolygon = (): ActivePolygonState => {
   });
 
   const polygon = detailQuery.data ?? listMatch;
-  const polygonId = polygon?.id ?? selectedFarm?.polygon_id ?? null;
+  const hasFarmCoordinate = selectedFarm?.latitude != null && selectedFarm?.longitude != null;
+  const polygonCompatibleWithFarm =
+    hasFarmCoordinate &&
+    polygonMatchesCoordinate(polygon, selectedFarm.latitude, selectedFarm.longitude);
 
-  const feature = useMemo(
-    () => (polygon ? polygonToGeoJsonFeature(polygon, { farmName: selectedFarm?.name }) : null),
-    [polygon, selectedFarm?.name],
+  const shouldUseRemotePolygon = Boolean(
+    selectedFarm?.polygon_id || !hasFarmCoordinate || polygonCompatibleWithFarm,
   );
+
+  const polygonId = shouldUseRemotePolygon
+    ? (polygon?.id ?? selectedFarm?.polygon_id ?? null)
+    : null;
+  const areaHa = resolvePolygonAreaHa(polygon);
+
+  const feature = useMemo(() => {
+    if (shouldUseRemotePolygon && polygon) {
+      return polygonToGeoJsonFeature(polygon, { farmName: selectedFarm?.name });
+    }
+    if (hasFarmCoordinate && selectedFarm) {
+      return syntheticFeatureFromCoordinate({
+        latitude: selectedFarm.latitude,
+        longitude: selectedFarm.longitude,
+        farmName: selectedFarm.name,
+        areaHa,
+      });
+    }
+    return null;
+  }, [shouldUseRemotePolygon, polygon, hasFarmCoordinate, selectedFarm, areaHa]);
 
   const bounds = useMemo(() => boundsFromGeoJson(feature), [feature]);
   const maxBounds = useMemo(() => (bounds ? paddedBounds(bounds) : null), [bounds]);
 
   return {
-    polygon,
+    polygon: shouldUseRemotePolygon ? polygon : null,
     polygonId,
-    areaHa: resolvePolygonAreaHa(polygon),
+    areaHa,
     feature,
     bounds,
     maxBounds,
