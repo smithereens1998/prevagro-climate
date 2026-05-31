@@ -13,7 +13,7 @@ from app.integrations.gemini import GeminiClient
 from app.integrations.webhook_notifier import notify_insight_generated_async
 
 settings = get_settings()
-PROMPT_VERSION = "v1.0.0"
+PROMPT_VERSION = "v1.1.0"
 
 
 def _get_default_user_id() -> int:
@@ -108,13 +108,14 @@ def get_horizon_features(
             feature_payload
         FROM public.farm_horizon_prediction_features
         WHERE user_id = :user_id
+          AND horizon_months = 1
     """
     if latitude is not None and longitude is not None:
         query += " AND latitude = :latitude AND longitude = :longitude"
         params["latitude"] = latitude
         params["longitude"] = longitude
 
-    query += " ORDER BY reference_date DESC, horizon_months ASC LIMIT 4"
+    query += " ORDER BY reference_date DESC LIMIT 4"
 
     with engine.connect() as connection:
         rows = connection.execute(text(query), params).mappings().all()
@@ -150,9 +151,9 @@ def build_prediction_prompt_with_horizons(
     horizon_json = json.dumps(horizon_rows, ensure_ascii=False)
     return (
         f"{base_prompt}\n\n"
-        "Considere também as features preditivas agregadas para 6 e 12 meses:\n"
+        "Considere também as features preditivas agregadas para estimativa de 30 dias:\n"
         f"{horizon_json}\n"
-        "Use essas features para enriquecer as predições de médio/longo prazo."
+        "Use essas features para enriquecer as predições de curto prazo (até 30 dias)."
     )
 
 
@@ -246,7 +247,21 @@ async def generate_prediction(
     )
     if horizon_rows:
         prompt = build_prediction_prompt_with_horizons(rows, horizon_rows)
-    prediction = await GeminiClient().generate_structured_analysis(prompt=prompt)
+    raw_prediction = await GeminiClient().generate_structured_analysis(prompt=prompt)
+    if isinstance(raw_prediction, dict):
+        prediction = raw_prediction
+    else:
+        prediction = {
+            "diagnostico": {
+                "nivel_risco": "indefinido",
+                "resumo": "Modelo retornou formato fora do esperado; mantendo resposta bruta para auditoria.",
+            },
+            "predicoes": [],
+            "acoes_recomendadas": [],
+            "alertas": ["Resposta da LLM fora do schema esperado."],
+            "metricas_chave": {},
+            "raw_llm_response": raw_prediction,
+        }
 
     prediction_id = save_prediction_result(
         user_id=resolved_user_id,

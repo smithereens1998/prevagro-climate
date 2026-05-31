@@ -40,7 +40,7 @@ Como os dados ajudam:
 
 - pipeline diario de ingestao;
 - previsao sazonal externa;
-- features de horizonte para 6 e 12 meses (`heat_risk_score`, `water_stress_score`).
+- features de horizonte para 30 dias (`heat_risk_score`, `water_stress_score`).
 
 O que a LLM entrega:
 
@@ -113,7 +113,7 @@ Com o que esta implementado hoje, a LLM pode produzir insights como:
 
 - "Risco hidrico alto nas proximas 24h devido a baixa umidade do solo e alta temperatura."
 - "Sem intervencao, o estresse da cultura tende a aumentar na proxima semana."
-- "Nos proximos 6 meses, o cenario projetado indica baixa precipitacao e alta chance de estresse hidrico."
+- "Nos proximos 30 dias, o cenario projetado indica baixa precipitacao e alta chance de estresse hidrico."
 - "Priorizar irrigacao noturna para reduzir perda por evaporacao."
 - "Reforcar monitoramento de solo diario ate recuperar nivel minimo de umidade."
 - "Planejar proxima safra com estrategia mais resiliente a calor e seca."
@@ -139,7 +139,7 @@ Em termos de resultado, esse conjunto de dados + LLM ajuda a:
 Para manter expectativa correta:
 
 - a confianca aumenta conforme o historico cresce;
-- previsao 6-12 meses deve ser lida como cenario probabilistico, nao certeza;
+- previsao de 30 dias deve ser lida como cenario probabilistico, nao certeza;
 - qualidade da analise depende da qualidade e frequencia da coleta.
 
 Mesmo assim, o sistema ja entrega valor operacional claro no estado atual.

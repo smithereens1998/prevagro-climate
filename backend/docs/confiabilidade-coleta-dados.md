@@ -63,7 +63,7 @@ Observacao pratica para AgroMonitoring:
 - Qualidade depende de cobertura de nuvens e disponibilidade orbital.
 - Periodicidade real varia por latitude e sazonalidade.
 - Alguns indices/estatisticas sao especificos por sensor.
-- API nao substitui modelagem climatica sazonal por si so para 6-12 meses.
+- API nao substitui modelagem climatica dedicada por si so para janelas de 30 dias.
 
 ## Qualidade de dados no projeto (estado operacional)
 
@@ -79,7 +79,7 @@ Pipeline atual implementado no backend:
   - Open-Meteo Climate API;
   - tabela `farm_seasonal_forecasts`;
 - features de horizonte:
-  - 6 meses e 12 meses;
+  - 30 dias;
   - tabela `farm_horizon_prediction_features`;
 - analise LLM persistida:
   - tabela `farm_ai_predictions`.
@@ -122,19 +122,19 @@ Filtros minimos sugeridos no consumo:
   - `response_json`;
   - timestamp.
 
-## Viabilidade de previsao 6-12 meses
+## Viabilidade de previsao para 30 dias
 
 Sim, e possivel em termos praticos se tratada como previsao probabilistica:
 
 - usar sazonalidade externa + historico local agregado;
-- atualizar features por horizonte (6m/12m);
+- atualizar features por horizonte de 30 dias;
 - interpretar saida como risco/cenario, nao como previsao deterministica diaria.
 
 No projeto, esta base ja esta habilitada com:
 
 - `farm_seasonal_forecasts`;
 - `farm_horizon_prediction_features`;
-- enriquecimento da LLM com features de 6/12 meses.
+- enriquecimento da LLM com features de 30 dias.
 
 ## Referencias tecnicas
 
