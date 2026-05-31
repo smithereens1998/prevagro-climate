@@ -165,6 +165,19 @@ Retorno:
 
 - Remove coordenada.
 
+#### `GET /farm-monitoring/latest`
+
+- Retorna a ultima identidade de fazenda persistida em `farm_monitoring_records`.
+- Campos retornados:
+  - `farm_name`
+  - `farm_location`
+  - `latitude`
+  - `longitude`
+  - `observed_at`
+- Uso recomendado no frontend:
+  - header/resumo de contexto da fazenda;
+  - fallback rapido para exibir nome/localizacao sem montar query customizada.
+
 ---
 
 ## 3) Pipeline operacional
@@ -360,8 +373,9 @@ Uso recomendado:
 
 1. `GET /farm-monitoring/coordinates`
 2. se vazio, criar via `POST /farm-monitoring/coordinates`
-3. carregar `GET /pipeline/horizon-features`
-4. carregar `GET /pipeline/horizon-features/history`
+3. carregar `GET /farm-monitoring/latest`
+4. carregar `GET /pipeline/horizon-features`
+5. carregar `GET /pipeline/horizon-features/history`
 
 ### Atualizacao operacional (diaria)
 
