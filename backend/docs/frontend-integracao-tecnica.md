@@ -171,6 +171,12 @@ Retorno:
 
 Prefixo: `/pipeline`
 
+### Importante: status atual de automacao
+
+- Os endpoints de pipeline e LLM funcionam e estao testados.
+- O agendamento automatico 1x/dia ainda depende de um orquestrador (`daily-full`) + agendador do SO/infra.
+- Sem esse orquestrador, ingestao e LLM rodam em chamadas separadas.
+
 ### `POST /pipeline/daily-ingestion`
 
 Executa coleta diaria automatica:
@@ -202,6 +208,60 @@ Executa integracao de previsao sazonal externa (Open-Meteo Climate):
 
 - grava diario em `farm_seasonal_forecasts`;
 - gera features de 6 e 12 meses em `farm_horizon_prediction_features`.
+
+### `POST /pipeline/daily-full` (recomendado para producao)
+
+Objetivo: executar o ciclo diario completo em uma unica chamada:
+
+1. `daily-ingestion`
+2. `seasonal-forecast`
+3. `llm/predictions`
+
+Retorno recomendado:
+
+```json
+{
+  "status": "success",
+  "executed_at": "2026-05-31T00:00:00Z",
+  "steps": {
+    "daily_ingestion": { "status": "success", "run_id": 10 },
+    "seasonal_forecast": { "status": "success", "saved_forecast_rows": 366 },
+    "llm_prediction": { "status": "success", "prediction_id": 55 }
+  }
+}
+```
+
+Notas:
+
+- esse endpoint unificado e o caminho ideal para agendamento 1x/dia;
+- deve ser idempotente por dia/usuario/coordenada para evitar duplicidade operacional;
+- em caso de falha parcial, retornar status por etapa.
+
+### `GET /pipeline/daily-full/latest`
+
+- Retorna ultima execucao do orquestrador diario.
+- Usar no frontend para:
+  - badge de saude do pipeline;
+  - horario do ultimo sucesso;
+  - erro por etapa quando houver falha.
+
+Resposta tipica:
+
+```json
+{
+  "id": 7,
+  "run_date": "2026-05-31",
+  "status": "success",
+  "steps": {
+    "daily_ingestion": { "status": "success", "attempts_used": 1, "duration_ms": 9200 },
+    "seasonal_forecast": { "status": "success", "attempts_used": 1, "duration_ms": 68000 },
+    "llm_prediction": { "status": "success", "attempts_used": 1, "duration_ms": 32000 }
+  },
+  "duration_ms": 109200,
+  "started_at": "2026-05-31T00:30:00+00:00",
+  "finished_at": "2026-05-31T00:31:49+00:00"
+}
+```
 
 ### `GET /pipeline/horizon-features?latitude={lat}&longitude={lon}`
 
@@ -305,10 +365,18 @@ Uso recomendado:
 
 ### Atualizacao operacional (diaria)
 
+Fluxo recomendado (producao):
+
+1. `POST /pipeline/daily-full`
+2. `GET /pipeline/horizon-features`
+3. `GET /pipeline/horizon-features/history`
+4. consumir ultimo `prediction_id` para painel de insights
+
+Fallback (se `daily-full` ainda nao estiver ativo):
+
 1. `POST /pipeline/daily-ingestion`
-2. `POST /pipeline/seasonal-forecast` (periodico, ex: diario ou semanal)
-3. `GET /pipeline/horizon-features`
-4. `POST /llm/predictions`
+2. `POST /pipeline/seasonal-forecast`
+3. `POST /llm/predictions`
 
 ### Atualizacao de coordenada no app
 
@@ -333,6 +401,7 @@ Uso recomendado:
 ## 8) Notas de implementacao frontend
 
 - Sempre tratar timeout/retry para endpoints de pipeline e LLM.
+- Exibir status por etapa quando usar `daily-full` (ingestao, sazonal, llm).
 - Para graficos:
   - usar `history[]` do endpoint de historico;
   - separar series por `horizon_months`.
@@ -352,7 +421,29 @@ Uso recomendado:
 - [ ] integrar mapa com helper `agromonitoring-map.ts`
 - [ ] integrar pipeline diario
 - [ ] integrar pipeline sazonal
+- [ ] integrar `daily-full` (quando publicado)
 - [ ] integrar `horizon-features` e `history`
 - [ ] integrar tela de analise LLM
 - [ ] implementar estados de loading/erro/retry
 - [ ] validar fluxo completo em homologacao
+
+---
+
+## 10) Requisitos de backend para job diario 1x/dia
+
+Para garantir que "atualizacao inclui tambem a analise preditiva da LLM", o backend precisa de:
+
+1. Endpoint/servico orquestrador `daily-full`.
+2. Registro de execucao com status por etapa (`ingestao`, `sazonal`, `llm`).
+3. Garantia de idempotencia por dia (nao duplicar processamento ao reexecutar).
+4. Script CLI para agendamento no Windows Task Scheduler (chamar `daily-full`).
+5. Politica de retry e timeout controlado para APIs externas.
+6. Observabilidade minima: logs de erro + ultimo sucesso por etapa.
+
+Status atual:
+
+- `POST /pipeline/daily-full` implementado com retry por etapa.
+- idempotencia diaria implementada por `user_id + run_date`.
+- observabilidade implementada em `farm_daily_full_runs`.
+- endpoint de observabilidade implementado em `GET /pipeline/daily-full/latest`.
+- script de agendamento Windows pronto: `scripts/schedule_daily_full_task.ps1`.

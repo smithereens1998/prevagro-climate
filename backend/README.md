@@ -88,10 +88,15 @@ python scripts/test_llm_prediction.py
 Daily ingestion + monthly features pipeline:
 
 - Endpoint: `POST /pipeline/daily-ingestion`
+- Endpoint: `POST /pipeline/daily-full?force={bool}&trigger_source={manual|scheduler|api}`
+- Endpoint: `GET /pipeline/daily-full/latest`
 - Script: `python scripts/run_daily_ingestion.py`
+- Script: `python scripts/run_daily_full.py`
+- Windows scheduler script: `powershell -ExecutionPolicy Bypass -File scripts/schedule_daily_full_task.ps1`
 - Tables:
   - `public.farm_ingestion_runs`
   - `public.farm_monthly_features`
+  - `public.farm_daily_full_runs`
 
 Seasonal forecast + horizon features pipeline (6/12 months):
 
