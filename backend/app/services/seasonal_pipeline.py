@@ -11,9 +11,9 @@ from app.core.config import get_settings
 from app.db.database import engine
 from app.integrations.seasonal_forecast import SeasonalForecastClient
 
+from app.services.coordinate_utils import normalize_coordinate_pair, resolve_effective_coordinate
+
 settings = get_settings()
-DEFAULT_LATITUDE = 18.9439
-DEFAULT_LONGITUDE = 46.9925
 SOURCE_NAME = "open-meteo-climate"
 TARGET_HORIZON_DAYS = 30
 TARGET_HORIZON_MONTHS = 1
@@ -29,20 +29,7 @@ def _get_default_user_id() -> int:
 
 
 def _resolve_coordinate(user_id: int) -> tuple[float, float]:
-    sql = text(
-        """
-        SELECT latitude, longitude
-        FROM public.farm_coordinates
-        WHERE user_id = :user_id
-        ORDER BY updated_at DESC
-        LIMIT 1
-        """
-    )
-    with engine.connect() as connection:
-        row = connection.execute(sql, {"user_id": user_id}).mappings().one_or_none()
-    if row:
-        return float(row["latitude"]), float(row["longitude"])
-    return DEFAULT_LATITUDE, DEFAULT_LONGITUDE
+    return resolve_effective_coordinate(user_id=user_id)
 
 
 def _to_date(value: str) -> date:
@@ -355,7 +342,7 @@ def get_seasonal_forecast_daily(
 ) -> dict[str, Any]:
     resolved_user_id = user_id or _get_default_user_id()
     resolved_latitude, resolved_longitude = (
-        (latitude, longitude)
+        normalize_coordinate_pair(latitude, longitude)
         if latitude is not None and longitude is not None
         else _resolve_coordinate(resolved_user_id)
     )
@@ -440,7 +427,7 @@ def get_latest_horizon_features(
 ) -> dict[str, Any]:
     resolved_user_id = user_id or _get_default_user_id()
     resolved_latitude, resolved_longitude = (
-        (latitude, longitude)
+        normalize_coordinate_pair(latitude, longitude)
         if latitude is not None and longitude is not None
         else _resolve_coordinate(resolved_user_id)
     )
@@ -516,7 +503,7 @@ def get_horizon_features_history(
 ) -> dict[str, Any]:
     resolved_user_id = user_id or _get_default_user_id()
     resolved_latitude, resolved_longitude = (
-        (latitude, longitude)
+        normalize_coordinate_pair(latitude, longitude)
         if latitude is not None and longitude is not None
         else _resolve_coordinate(resolved_user_id)
     )

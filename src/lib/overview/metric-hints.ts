@@ -26,14 +26,14 @@ export const METRIC_HINTS = {
   },
   riskScore: {
     title: "Risco climático",
-    description: "Score agregado de calor e estresse hídrico (média dos horizontes 6m/12m do pipeline).",
-    source: "GET /pipeline/horizon-features",
+    description: "Score agregado de calor e estresse hídrico para os próximos 30 dias.",
+    source: "GET /pipeline/horizon-features · features 30d",
     interpretation: "0–33 favorável · 34–66 atenção · 67–100 crítico. Quanto menor, melhor.",
   },
   ndviStress: {
-    title: "Estresse hídrico (12m)",
-    description: "Projeção de estresse hídrico para 12 meses — não é NDVI satelital.",
-    source: "GET /pipeline/horizon-features · features 12m",
+    title: "Estresse hídrico (30d)",
+    description: "Projeção de estresse hídrico para 30 dias — não é NDVI satelital.",
+    source: "GET /pipeline/horizon-features · features 30d",
     interpretation: "Quanto menor, melhor. Acima de 66 indica cenário seco prolongado.",
   },
   humidity: {

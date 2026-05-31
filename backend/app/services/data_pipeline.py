@@ -15,10 +15,10 @@ from app.services.farm_monitoring import (
     upsert_weather_analysis,
 )
 
+from app.services.coordinate_utils import resolve_effective_coordinate
+
 settings = get_settings()
 DEFAULT_POLYGON_ID = "6a1aec4cb5c0520008ea2893"
-DEFAULT_LATITUDE = 18.9439
-DEFAULT_LONGITUDE = 46.9925
 
 
 def _get_default_user_id() -> int:
@@ -31,20 +31,7 @@ def _get_default_user_id() -> int:
 
 
 def _resolve_coordinate(user_id: int) -> tuple[float, float]:
-    sql = text(
-        """
-        SELECT latitude, longitude
-        FROM public.farm_coordinates
-        WHERE user_id = :user_id
-        ORDER BY updated_at DESC
-        LIMIT 1
-        """
-    )
-    with engine.connect() as connection:
-        row = connection.execute(sql, {"user_id": user_id}).mappings().one_or_none()
-    if row:
-        return float(row["latitude"]), float(row["longitude"])
-    return DEFAULT_LATITUDE, DEFAULT_LONGITUDE
+    return resolve_effective_coordinate(user_id=user_id)
 
 
 def _resolve_polygon_id() -> str:

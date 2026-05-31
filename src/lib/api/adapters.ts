@@ -29,10 +29,11 @@ export const horizonToRiskScore = (
   snapshot: HorizonFeaturesSnapshot | undefined,
 ): number | null => {
   if (!snapshot?.features) return null;
+  const f30 = snapshot.features["30d"];
   const f6 = snapshot.features["6m"];
   const f12 = snapshot.features["12m"];
-  const heat = f6?.heat_risk_score ?? f12?.heat_risk_score;
-  const water = f6?.water_stress_score ?? f12?.water_stress_score;
+  const heat = f30?.heat_risk_score ?? f6?.heat_risk_score ?? f12?.heat_risk_score;
+  const water = f30?.water_stress_score ?? f6?.water_stress_score ?? f12?.water_stress_score;
   if (heat == null && water == null) return null;
   const h = heat ?? 0;
   const w = water ?? 0;

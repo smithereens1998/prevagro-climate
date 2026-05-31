@@ -7,10 +7,12 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.integrations.agromonitoring import AgroMonitoringClient
+from app.services.coordinate_utils import normalize_coordinate_pair
 from app.services.farm_monitoring import (
     add_coordinate,
     delete_coordinate,
     get_latest_farm_identity,
+    get_latest_monitoring_observation,
     list_coordinates,
     update_coordinate,
     upsert_polygon_shape,
@@ -183,14 +185,29 @@ def get_latest_farm_monitoring_identity() -> dict[str, Any]:
     return latest
 
 
+@router.get("/observations/latest")
+def get_latest_farm_monitoring_observation(
+    latitude: float | None = Query(None, ge=-90, le=90),
+    longitude: float | None = Query(None, ge=-180, le=180),
+) -> dict[str, Any]:
+    observation = get_latest_monitoring_observation(latitude=latitude, longitude=longitude)
+    if not observation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No monitoring observation found")
+    return observation
+
+
 @router.post("/coordinates", status_code=status.HTTP_201_CREATED)
 async def post_coordinate(
     payload: CoordinatePayload,
     polygon_id: str | None = Query(None, alias="polygonId"),
 ) -> dict[str, Any]:
+    normalized_latitude, normalized_longitude = normalize_coordinate_pair(
+        payload.latitude,
+        payload.longitude,
+    )
     polygon_sync = await _sync_polygon_after_coordinate_change(
-        latitude=payload.latitude,
-        longitude=payload.longitude,
+        latitude=normalized_latitude,
+        longitude=normalized_longitude,
         polygon_id=polygon_id,
     )
 
@@ -206,8 +223,8 @@ async def post_coordinate(
     stored_polygon_id = synced_polygon_id if polygon_sync.get("synced") else polygon_id
     coordinate = add_coordinate(
         name=resolved_name,
-        latitude=payload.latitude,
-        longitude=payload.longitude,
+        latitude=normalized_latitude,
+        longitude=normalized_longitude,
         polygon_id=stored_polygon_id,
     )
     return {"coordinate": coordinate, "polygon_sync": polygon_sync}
@@ -219,17 +236,21 @@ async def put_coordinate(
     payload: CoordinatePayload,
     polygon_id: str | None = Query(None, alias="polygonId"),
 ) -> dict[str, Any]:
+    normalized_latitude, normalized_longitude = normalize_coordinate_pair(
+        payload.latitude,
+        payload.longitude,
+    )
     polygon_sync = await _sync_polygon_after_coordinate_change(
-        latitude=payload.latitude,
-        longitude=payload.longitude,
+        latitude=normalized_latitude,
+        longitude=normalized_longitude,
         polygon_id=polygon_id,
     )
     synced_polygon_id = polygon_sync.get("polygon_id") if polygon_sync.get("synced") else polygon_id
     updated = update_coordinate(
         coordinate_id=coordinate_id,
         name=payload.name,
-        latitude=payload.latitude,
-        longitude=payload.longitude,
+        latitude=normalized_latitude,
+        longitude=normalized_longitude,
         polygon_id=synced_polygon_id if isinstance(synced_polygon_id, str) else None,
     )
     if not updated:

@@ -42,6 +42,9 @@ export const runDailyIngestion = () =>
 export const runSeasonalForecast = () =>
   apiRequest<Record<string, unknown>>("/pipeline/seasonal-forecast", { method: "POST" });
 
+export const runManualRefresh = () =>
+  apiRequest<Record<string, unknown>>("/pipeline/manual-refresh", { method: "PUT" });
+
 export const runDailyFull = (force = false) =>
   apiRequest<Record<string, unknown>>("/pipeline/daily-full", {
     method: "POST",

@@ -19,6 +19,25 @@ export type FarmLatestIdentity = {
   observed_at: string;
 };
 
+export type FarmMonitoringObservation = {
+  farm_name: string;
+  farm_location: string | null;
+  latitude: number;
+  longitude: number;
+  observed_at: string;
+  weather: {
+    temp_celsius: number | null;
+    temp_min_celsius: number | null;
+    temp_max_celsius: number | null;
+    humidity_percent: number | null;
+    wind_speed_mps: number | null;
+  };
+  soil: {
+    moisture: number | null;
+    temp_surface_celsius: number | null;
+  };
+};
+
 export type CoordinatePayload = {
   name: string;
   latitude: number;

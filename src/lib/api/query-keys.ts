@@ -5,6 +5,8 @@ export const apiQueryKeys = {
   dbHealth: ["api", "health", "db"] as const,
   coordinates: ["farm-monitoring", "coordinates"] as const,
   farmLatest: ["farm-monitoring", "latest"] as const,
+  farmObservationLatest: (q?: CoordinateQuery) =>
+    ["farm-monitoring", "observations", "latest", q?.latitude, q?.longitude] as const,
   agroPolygons: ["agromonitoring", "polygons"] as const,
   agroPolygon: (polygonId: string) => ["agromonitoring", "polygons", polygonId] as const,
   agroWeather: (lat: number, lon: number) => ["agromonitoring", "weather", lat, lon] as const,
