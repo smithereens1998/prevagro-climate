@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PageHeader } from "@/components/ui-bits";
 import { GeoMap } from "@/components/GeoMap";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { useActivePolygon } from "@/lib/farm/use-active-polygon";
 import { horizonToRiskScore } from "@/lib/api/adapters";
 import { averageNdvi } from "@/lib/api/overview-adapters";
 import { centroidFromFeature } from "@/lib/farm/polygon-utils";
+import { buildLayerMetricsFromApi, buildLayerMetricLabels, layerGeometryColor } from "@/lib/geo/layer-metrics";
 import {
   DEFAULT_ACTIVE_LAYERS,
   LAYER_IDS,
@@ -85,6 +86,28 @@ function MapaPage() {
     soloMoisture != null ? `${Math.round(soloMoisture * 100)}% umid.` : "—";
   const ndviAvg = satellite.data ? averageNdvi(satellite.data) : null;
   const areaHa = activePolygon.areaHa;
+  const layerMetrics = useMemo(
+    () =>
+      buildLayerMetricsFromApi({
+        weather: weather.data,
+        soil: soil.data,
+        satellite: satellite.data,
+        riskScore: apiRisk,
+      }),
+    [weather.data, soil.data, satellite.data, apiRisk],
+  );
+  const layerLabels = useMemo(
+    () =>
+      buildLayerMetricLabels({
+        weather: weather.data,
+        soil: soil.data,
+        satellite: satellite.data,
+        riskScore: apiRisk,
+      }),
+    [weather.data, soil.data, satellite.data, apiRisk],
+  );
+  const hasApiLayerData =
+    weather.isSuccess || soil.isSuccess || satellite.isSuccess || horizon.isSuccess;
 
   const metrics = [
     { k: "Área", v: areaHa != null ? `${areaHa} ha` : "—" },
@@ -142,6 +165,8 @@ function MapaPage() {
             farmLabel={farmLabel}
             areaHa={areaHa}
             riskScore={riskScore}
+            layerMetrics={layerMetrics}
+            layerLabels={layerLabels}
           />
 
           <section className="panel rounded-lg p-4">
@@ -167,15 +192,21 @@ function MapaPage() {
           </section>
         </div>
 
-        <aside className="flex flex-col gap-4">
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
           <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
               <Layers className="h-4 w-4 text-primary" />
               Camadas
             </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {hasApiLayerData
+                ? "Valores da API aplicados no polígono ativo. Heatmap sintético dentro do perímetro."
+                : "Aguardando dados da API — camadas usam fallback local."}
+            </p>
             <div className="flex flex-col gap-2">
               {LAYER_IDS.map((id) => {
                 const meta = LAYER_META[id];
+                const label = layerLabels[id];
                 const on = active.includes(id);
                 return (
                   <button
@@ -183,18 +214,44 @@ function MapaPage() {
                     type="button"
                     onClick={() => toggle(id)}
                     aria-pressed={on}
+                    aria-label={`${meta.label}${on && label ? `: ${label.value}` : ""}`}
                     className={cn(
-                      "flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                      "flex items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                       on
                         ? "border-primary/40 bg-primary/10 text-foreground"
                         : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <span>{meta.label}</span>
                     <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: rgbToHex(meta.geometryColor()) }}
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: rgbToHex(layerGeometryColor(id, layerMetrics)) }}
+                      aria-hidden
                     />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[11px] leading-snug text-muted-foreground">
+                        {meta.description}
+                      </span>
+                      <span className="mt-1 block font-medium">{meta.label}</span>
+                      {on ? (
+                        <span
+                          className={cn(
+                            "mt-0.5 block text-xs font-semibold tabular-nums",
+                            label.fromApi ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {label.value}
+                        </span>
+                      ) : (
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {label.fromApi ? label.value : label.subtitle}
+                        </span>
+                      )}
+                      {on ? (
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          {label.subtitle}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 );
               })}

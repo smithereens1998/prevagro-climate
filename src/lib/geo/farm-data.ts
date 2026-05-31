@@ -192,6 +192,42 @@ export const pointInPerimeter = (pt: [number, number]) => {
 
 export type HeatPoint = { position: [number, number]; weight: number };
 
+type PolygonLike = {
+  geometry: { type: string; coordinates: [number, number][][] };
+};
+
+export const boundsFromPolygon = (feature: PolygonLike): [[number, number], [number, number]] => {
+  let minLon = Infinity;
+  let minLat = Infinity;
+  let maxLon = -Infinity;
+  let maxLat = -Infinity;
+  for (const [lon, lat] of feature.geometry.coordinates[0]) {
+    if (lon < minLon) minLon = lon;
+    if (lon > maxLon) maxLon = lon;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  }
+  return [
+    [minLon, minLat],
+    [maxLon, maxLat],
+  ];
+};
+
+export const pointInPolygonRing = (pt: [number, number], ring: [number, number][]) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const hit =
+      yi > pt[1] !== yj > pt[1] && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi;
+    if (hit) inside = !inside;
+  }
+  return inside;
+};
+
+export const pointInPolygonFeature = (pt: [number, number], feature: PolygonLike) =>
+  pointInPolygonRing(pt, feature.geometry.coordinates[0]);
+
 function mulberry32(seed: number) {
   let a = seed;
   return () => {
@@ -210,10 +246,16 @@ const metricWeight = (metric: FarmMetricKey, value: number) => {
 };
 
 /** Pontos de calor amostrados dentro do perímetro da fazenda. */
-export function makeHeatPoints(metric: FarmMetricKey, count = 180): HeatPoint[] {
+export function makeHeatPoints(
+  metric: FarmMetricKey,
+  count = 180,
+  options?: { perimeter?: PolygonLike; metrics?: FarmMetrics },
+): HeatPoint[] {
+  const perimeter = options?.perimeter ?? FARM_PERIMETER;
+  const metrics = options?.metrics ?? FARM_METRICS;
   const rand = mulberry32(metric.length * 9973 + 17);
-  const [[minLon, minLat], [maxLon, maxLat]] = farmBounds();
-  const base = metricWeight(metric, FARM_METRICS[metric]);
+  const [[minLon, minLat], [maxLon, maxLat]] = boundsFromPolygon(perimeter);
+  const base = metricWeight(metric, metrics[metric]);
   const out: HeatPoint[] = [];
 
   let guard = 0;
@@ -221,7 +263,7 @@ export function makeHeatPoints(metric: FarmMetricKey, count = 180): HeatPoint[] 
     guard++;
     const lon = minLon + rand() * (maxLon - minLon);
     const lat = minLat + rand() * (maxLat - minLat);
-    if (!pointInPerimeter([lon, lat])) continue;
+    if (!pointInPolygonFeature([lon, lat], perimeter)) continue;
     out.push({
       position: [lon, lat],
       weight: Math.max(0.05, Math.min(1, base * (0.65 + rand() * 0.7))),
@@ -231,10 +273,14 @@ export function makeHeatPoints(metric: FarmMetricKey, count = 180): HeatPoint[] 
 }
 
 /** Pontos GeoJSON para heatmap nativo Mapbox (drapa no terreno 3D). */
-export function makeHeatGeoJSON(metric: FarmMetricKey) {
+export function makeHeatGeoJSON(
+  metric: FarmMetricKey,
+  options?: { perimeter?: PolygonLike; metrics?: FarmMetrics; count?: number },
+) {
+  const count = options?.count ?? 180;
   return {
     type: "FeatureCollection" as const,
-    features: makeHeatPoints(metric).map((p) => ({
+    features: makeHeatPoints(metric, count, options).map((p) => ({
       type: "Feature" as const,
       properties: { weight: p.weight },
       geometry: { type: "Point" as const, coordinates: p.position },

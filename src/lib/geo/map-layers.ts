@@ -32,8 +32,8 @@ export type VizMode = "auto" | "heatmap" | "geometry" | "columns";
 
 export type BasemapId = "satellite" | "terrain" | "dark";
 
-/** Nenhuma camada de dados ativa ao abrir o mapa — usuário liga manualmente. */
-export const DEFAULT_ACTIVE_LAYERS: LayerId[] = [];
+/** Camadas visíveis ao abrir o mapa — preenchimento usa valores da API no polígono ativo. */
+export const DEFAULT_ACTIVE_LAYERS: LayerId[] = ["Risco Climático", "Vegetação"];
 
 /** satellite-v9 evita sprites de rótulos (ex.: br-state-4) que geram warnings. */
 export const BASEMAP_STYLES: Record<BasemapId, string> = {
@@ -45,23 +45,31 @@ export const BASEMAP_STYLES: Record<BasemapId, string> = {
 export type LegendItem = {
   layerId: LayerId;
   title: string;
+  description: string;
   minLabel: string;
   maxLabel: string;
   stops: RGB[];
   unit?: string;
+  currentValue?: string;
+  valueHint?: string;
+  fromApi?: boolean;
 };
 
 type LayerMeta = {
+  label: string;
+  description: string;
   defaultViz: VizKind;
   heatMetric: FarmMetricKey;
   colorRange?: ColorRange;
-  legend: Omit<LegendItem, "layerId">;
+  legend: Omit<LegendItem, "layerId" | "description">;
   geometryColor: () => RGB;
   columnValue?: () => number;
 };
 
 export const LAYER_META: Record<LayerId, LayerMeta> = {
   Vegetação: {
+    label: "Vegetação",
+    description: "Vigor da cultura no polígono, medido pelo NDVI satelital.",
     defaultViz: "geometry",
     heatMetric: "ndvi",
     legend: {
@@ -73,6 +81,8 @@ export const LAYER_META: Record<LayerId, LayerMeta> = {
     geometryColor: () => ndviColor(FARM_METRICS.ndvi),
   },
   Temperatura: {
+    label: "Temperatura",
+    description: "Temperatura do ar no centro da fazenda, via clima em tempo real.",
     defaultViz: "heatmap",
     heatMetric: "temp",
     colorRange: TEMP_RANGE,
@@ -86,11 +96,13 @@ export const LAYER_META: Record<LayerId, LayerMeta> = {
     geometryColor: () => tempColor(FARM_METRICS.temp),
   },
   Umidade: {
+    label: "Umidade",
+    description: "Umidade relativa do ar sobre a área — indica conforto térmico e evapotranspiração.",
     defaultViz: "heatmap",
     heatMetric: "umidade",
     colorRange: UMID_RANGE,
     legend: {
-      title: "Umidade do solo",
+      title: "Umidade relativa",
       minLabel: "Seco",
       maxLabel: "Úmido",
       stops: [UMID_RANGE[0], UMID_RANGE[3], UMID_RANGE[5]],
@@ -99,17 +111,22 @@ export const LAYER_META: Record<LayerId, LayerMeta> = {
     geometryColor: () => umidColor(FARM_METRICS.umidade),
   },
   Solo: {
+    label: "Solo",
+    description: "Umidade do solo na superfície — disponibilidade hídrica para a raiz.",
     defaultViz: "geometry",
     heatMetric: "soloScore",
     legend: {
-      title: "Qualidade do solo",
-      minLabel: "Baixa",
-      maxLabel: "Alta",
+      title: "Umidade do solo",
+      minLabel: "Seco",
+      maxLabel: "Úmido",
       stops: [[92, 64, 38], [139, 105, 70], [186, 134, 86]],
+      unit: "%",
     },
     geometryColor: () => soloColor(FARM_METRICS.soloScore),
   },
   "Risco Climático": {
+    label: "Risco Climático",
+    description: "Score de risco agregado (calor + estresse hídrico) projetado para os próximos meses.",
     defaultViz: "heatmap",
     heatMetric: "riscoScore",
     colorRange: RISK_RANGE,
@@ -133,7 +150,26 @@ export const resolveVizKind = (layerId: LayerId, mode: VizMode): VizKind => {
 export const getLegendsForLayers = (active: string[]): LegendItem[] =>
   active
     .filter((id): id is LayerId => LAYER_IDS.includes(id as LayerId))
-    .map((layerId) => ({ layerId, ...LAYER_META[layerId].legend }));
+    .map((layerId) => ({
+      layerId,
+      description: LAYER_META[layerId].description,
+      ...LAYER_META[layerId].legend,
+    }));
+
+export const enrichLegendsWithLabels = (
+  legends: LegendItem[],
+  labels: Partial<Record<LayerId, { value: string; subtitle: string; fromApi: boolean }>>,
+): LegendItem[] =>
+  legends.map((item) => {
+    const label = labels[item.layerId];
+    if (!label) return item;
+    return {
+      ...item,
+      currentValue: label.value,
+      valueHint: label.subtitle,
+      fromApi: label.fromApi,
+    };
+  });
 
 export const fillColorForLayer = (layerId: LayerId, opacity: number) =>
   toRgba(LAYER_META[layerId].geometryColor(), opacity);

@@ -6,22 +6,26 @@ import { Crosshair, Plus, Minus, Box } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MapLegend } from "@/components/MapLegend";
 import {
+  FARM_METRICS,
   FARM_PERIMETER,
   farmBounds,
   makeHeatGeoJSON,
   perimeterCentroid,
+  type FarmMetrics,
 } from "@/lib/geo/farm-data";
+import { layerGeometryColor } from "@/lib/geo/layer-metrics";
 import {
   BASEMAP_STYLES,
-  fillColorForLayer,
   getLegendsForLayers,
   LAYER_IDS,
   LAYER_META,
+  enrichLegendsWithLabels,
   resolveVizKind,
   type BasemapId,
   type LayerId,
   type VizMode,
 } from "@/lib/geo/map-layers";
+import type { LayerMetricLabel } from "@/lib/geo/layer-metrics";
 import {
   heatmapColorExpression,
   NDVI_HEAT_RANGE,
@@ -66,7 +70,12 @@ type GeoMapProps = {
   farmLabel?: string;
   areaHa?: number | null;
   riskScore?: number | null;
+  layerMetrics?: FarmMetrics;
+  layerLabels?: Partial<Record<LayerId, LayerMetricLabel>>;
 };
+
+const fillColorForMetrics = (layerId: LayerId, metrics: FarmMetrics, opacity: number) =>
+  toRgba(layerGeometryColor(layerId, metrics), opacity);
 
 const isLayerId = (id: string): id is LayerId => LAYER_IDS.includes(id as LayerId);
 
@@ -113,8 +122,10 @@ const syncMapboxDataLayers = (
   opacity: number,
   is3D: boolean,
   perimeterGeoJson: typeof FARM_PERIMETER,
+  metrics: FarmMetrics,
 ) => {
   removeMapboxDataLayers(map);
+  const heatOptions = { perimeter: perimeterGeoJson, metrics };
 
   for (const layerId of activeLayers.filter(isLayerId)) {
     const meta = LAYER_META[layerId];
@@ -122,7 +133,10 @@ const syncMapboxDataLayers = (
     const sourceId = `${DATA_LAYER_PREFIX}-${layerId}`;
 
     if (kind === "heatmap") {
-      map.addSource(sourceId, { type: "geojson", data: makeHeatGeoJSON(meta.heatMetric) });
+      map.addSource(sourceId, {
+        type: "geojson",
+        data: makeHeatGeoJSON(meta.heatMetric, heatOptions),
+      });
       map.addLayer({
         id: `${sourceId}-heat`,
         type: "heatmap",
@@ -147,8 +161,8 @@ const syncMapboxDataLayers = (
         type: "fill-extrusion",
         source: sourceId,
         paint: {
-          "fill-extrusion-color": rgbToHex(meta.geometryColor()),
-          "fill-extrusion-height": meta.columnValue() * 4,
+          "fill-extrusion-color": rgbToHex(layerGeometryColor(layerId, metrics)),
+          "fill-extrusion-height": (meta.columnValue?.() ?? metrics[meta.heatMetric]) * 4,
           "fill-extrusion-opacity": opacity * 0.85,
           "fill-extrusion-base": 0,
         },
@@ -163,7 +177,7 @@ const syncMapboxDataLayers = (
         type: "fill",
         source: sourceId,
         paint: {
-          "fill-color": rgbToHex(meta.geometryColor()),
+          "fill-color": rgbToHex(layerGeometryColor(layerId, metrics)),
           "fill-opacity": opacity * 0.72,
         },
       });
@@ -186,6 +200,8 @@ export function GeoMap({
   farmLabel = "Fazenda",
   areaHa = null,
   riskScore = null,
+  layerMetrics = FARM_METRICS,
+  layerLabels,
 }: GeoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -201,12 +217,14 @@ export function GeoMap({
   const activeLayersRef = useRef(activeLayers);
   const vizModeRef = useRef(vizMode);
   const layerOpacityRef = useRef(layerOpacity);
+  const layerMetricsRef = useRef(layerMetrics);
   is3DRef.current = is3D;
   activeLayersRef.current = activeLayers;
   vizModeRef.current = vizMode;
   layerOpacityRef.current = layerOpacity;
+  layerMetricsRef.current = layerMetrics;
 
-  const legends = getLegendsForLayers(activeLayers);
+  const legends = enrichLegendsWithLabels(getLegendsForLayers(activeLayers), layerLabels ?? {});
   const perimeterData = perimeterFeature ?? FARM_PERIMETER;
   const fitBoundsData = mapBounds ?? farmBounds();
   const maxBoundsData = mapMaxBounds ?? paddedMaxBounds();
@@ -348,6 +366,7 @@ export function GeoMap({
         layerOpacityRef.current,
         is3DRef.current,
         perimeterData,
+        layerMetricsRef.current,
       );
       syncPerimeter(map, is3DRef.current);
       map.fitBounds(fitBoundsData, {
@@ -377,10 +396,11 @@ export function GeoMap({
           if (kind === "heatmap") continue;
 
           if (kind === "columns" && meta.columnValue) {
+            const metricValue = layerMetrics[meta.heatMetric];
             layers.push(
               new ColumnLayer({
                 id: `col-${layerId}`,
-                data: [{ position: [cx, cy], value: meta.columnValue() }],
+                data: [{ position: [cx, cy], value: metricValue }],
                 diskResolution: 28,
                 radius: 900,
                 extruded: true,
@@ -401,7 +421,7 @@ export function GeoMap({
               filled: true,
               stroked: false,
               opacity: alpha,
-              getFillColor: fillColorForLayer(layerId, alpha),
+              getFillColor: () => fillColorForMetrics(layerId, layerMetrics, alpha),
               pickable: false,
             }),
           );
@@ -409,7 +429,7 @@ export function GeoMap({
       }
 
       overlayRef.current.setProps({ layers });
-      syncMapboxDataLayers(map, activeLayers, vizMode, layerOpacity, is3D, perimeterData);
+      syncMapboxDataLayers(map, activeLayers, vizMode, layerOpacity, is3D, perimeterData, layerMetrics);
       syncPerimeter(map, is3D);
     };
 
@@ -418,7 +438,7 @@ export function GeoMap({
       return;
     }
     map?.once("idle", syncLayers);
-  }, [ready, deckReady, activeLayers, vizMode, layerOpacity, is3D]);
+  }, [ready, deckReady, activeLayers, vizMode, layerOpacity, is3D, layerMetrics, perimeterData, mapCenter]);
 
   useEffect(() => {
     const map = mapRef.current;
