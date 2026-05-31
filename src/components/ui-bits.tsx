@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 
 export function KpiCard({
   label,
@@ -18,9 +17,9 @@ export function KpiCard({
   tone?: "primary" | "warning" | "danger" | "muted";
 }) {
   const toneClass = {
-    primary: "text-primary bg-primary/10",
-    warning: "text-warning bg-warning/10",
-    danger: "text-destructive bg-destructive/10",
+    primary: "text-muted-foreground bg-muted",
+    warning: "text-warning bg-muted",
+    danger: "text-destructive bg-muted",
     muted: "text-muted-foreground bg-muted",
   }[tone];
 
@@ -33,13 +32,8 @@ export function KpiCard({
           <Icon className="h-4 w-4" />
         </div>
         {delta !== undefined && (
-          <div
-            className={cn(
-              "flex items-center gap-0.5 rounded-md px-2 py-0.5 text-xs font-medium",
-              positive ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive",
-            )}
-          >
-            {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+          <div className="text-xs tabular-nums text-muted-foreground">
+            {positive ? "+" : "−"}
             {Math.abs(delta)}%
           </div>
         )}

@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Activity,
   Droplets,
   Sprout,
   AlertTriangle,
@@ -8,7 +7,7 @@ import {
   CloudRain,
   Thermometer,
   Mountain,
-  Brain,
+  FileText,
   Loader2,
   RefreshCw,
 } from "lucide-react";
@@ -31,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MetricHint } from "@/components/overview/MetricHint";
-import { chartTooltip, type OverviewKpiId } from "@/lib/farm-insights";
+import { chartTooltip, chartColors, type OverviewKpiId } from "@/lib/farm-insights";
 import {
   buildForecast30Metrics,
   buildOverviewKpisFromApi,
@@ -59,7 +58,7 @@ export const Route = createFileRoute("/_app/")({
   head: () => ({
     meta: [
       { title: "Visão Geral · Prevagro" },
-      { name: "description", content: "Inteligência climática com IA para sua fazenda." },
+      { name: "description", content: "Monitoramento climático e operacional da fazenda." },
     ],
   }),
   component: Overview,
@@ -157,7 +156,7 @@ function Overview() {
     refetchFarmIdentity();
   };
 
-  const farmLabel = farmDisplayName || activePolygon.polygon?.name || "Fazenda";
+  const farmLabel = selectedFarm?.name || farmDisplayName || activePolygon.polygon?.name || "Fazenda";
   const areaLabel = activePolygon.areaHa != null ? `${activePolygon.areaHa} ha` : null;
   const locationLabel = farmLocationLabel ? ` · ${farmLocationLabel}` : "";
   const coordsLabel =
@@ -173,7 +172,8 @@ function Overview() {
     <TooltipProvider delayDuration={200}>
     <>
       <PageHeader
-        description={`${farmLabel}${locationLabel}${areaLabel ? ` · ${areaLabel}` : ""} · ${coordsLabel} — dados da API. Atualizado: ${updatedLabel}.`}
+        title="Visão Geral"
+        description={`${farmLabel}${locationLabel}${areaLabel ? ` · ${areaLabel}` : ""} · ${coordsLabel}. Atualizado: ${updatedLabel}.`}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <PipelineStatusBadge />
@@ -183,15 +183,19 @@ function Overview() {
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Atualizar
+              Atualizar dados
             </Button>
-            <Button onClick={handleGenerateAnalysis} disabled={llmMutation.isPending || !hasLocation}>
+            <Button
+              variant="outline"
+              onClick={handleGenerateAnalysis}
+              disabled={llmMutation.isPending || !hasLocation}
+            >
               {llmMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Brain className="h-4 w-4" />
+                <FileText className="h-4 w-4" />
               )}
-              Gerar análise
+              Gerar diagnóstico
             </Button>
           </div>
         }
@@ -211,11 +215,11 @@ function Overview() {
       )}
 
       <SectionCard
-        title={`Mapa de Risco — ${farmLabel}`}
+        title={farmLabel}
         subtitle={
           areaLabel
-            ? `${areaLabel} · coordenadas ${coordsLabel}`
-            : `Coordenadas ativas · ${coordsLabel}`
+            ? `${areaLabel} · ${coordsLabel}`
+            : `Coordenadas · ${coordsLabel}`
         }
         action={
           <div className="flex flex-wrap gap-2">
@@ -379,8 +383,8 @@ function Overview() {
           {" · "}
           <MetricHint
             hint={METRIC_HINTS.riskScore}
-            label={<span>o que significa?</span>}
-            className="inline text-xs text-primary"
+            label={<span>como é calculado</span>}
+            className="inline text-xs text-muted-foreground underline-offset-2 hover:underline"
             iconClassName="h-3 w-3"
           />
         </p>
@@ -417,32 +421,32 @@ function Overview() {
                   <AreaChart data={climateSeries}>
                     <defs>
                       <linearGradient id="t1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#F4B400" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#F4B400" stopOpacity={0} />
+                        <stop offset="0%" stopColor={chartColors.temp} stopOpacity={0.35} />
+                        <stop offset="100%" stopColor={chartColors.temp} stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="r1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6BE234" stopOpacity={0.5} />
-                        <stop offset="100%" stopColor="#6BE234" stopOpacity={0} />
+                        <stop offset="0%" stopColor={chartColors.rain} stopOpacity={0.35} />
+                        <stop offset="100%" stopColor={chartColors.rain} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid stroke="#ffffff10" vertical={false} />
-                    <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
+                    <CartesianGrid stroke={chartColors.grid} vertical={false} />
+                    <XAxis dataKey="m" stroke={chartColors.axis} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={chartColors.axis} fontSize={11} tickLine={false} axisLine={false} />
                     <Tooltip {...chartTooltip} />
                     <Area
                       type="monotone"
                       dataKey="chuva"
-                      stroke="#6BE234"
+                      stroke={chartColors.rain}
                       fill="url(#r1)"
-                      strokeWidth={2}
+                      strokeWidth={1.5}
                       name="Chuva (mm)"
                     />
                     <Area
                       type="monotone"
                       dataKey="temp"
-                      stroke="#F4B400"
+                      stroke={chartColors.temp}
                       fill="url(#t1)"
-                      strokeWidth={2}
+                      strokeWidth={1.5}
                       name="Temp (°C)"
                     />
                   </AreaChart>
@@ -468,24 +472,24 @@ function Overview() {
               <div className="h-64">
                 <ResponsiveContainer>
                   <LineChart data={riskSeries}>
-                    <CartesianGrid stroke="#ffffff10" vertical={false} />
-                    <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <CartesianGrid stroke={chartColors.grid} vertical={false} />
+                    <XAxis dataKey="m" stroke={chartColors.axis} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={chartColors.axis} fontSize={11} tickLine={false} axisLine={false} domain={[0, 100]} />
                     <Tooltip {...chartTooltip} />
                     <Line
                       type="monotone"
                       dataKey="calor"
-                      stroke="#F4B400"
-                      strokeWidth={2.5}
-                      dot={{ fill: "#F4B400", r: 3 }}
+                      stroke={chartColors.riskHeat}
+                      strokeWidth={2}
+                      dot={{ fill: chartColors.riskHeat, r: 2 }}
                       name="Risco calor (/100)"
                     />
                     <Line
                       type="monotone"
                       dataKey="agua"
-                      stroke="#6BE234"
-                      strokeWidth={2.5}
-                      dot={{ fill: "#6BE234", r: 3 }}
+                      stroke={chartColors.riskWater}
+                      strokeWidth={2}
+                      dot={{ fill: chartColors.riskWater, r: 2 }}
                       name="Estresse hídrico (/100)"
                     />
                   </LineChart>
@@ -511,16 +515,16 @@ function Overview() {
               <div className="h-64">
                 <ResponsiveContainer>
                   <LineChart data={ndviSeries}>
-                    <CartesianGrid stroke="#ffffff10" vertical={false} />
-                    <XAxis dataKey="m" stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#AAB6C4" fontSize={11} tickLine={false} axisLine={false} domain={[0, 1]} />
+                    <CartesianGrid stroke={chartColors.grid} vertical={false} />
+                    <XAxis dataKey="m" stroke={chartColors.axis} fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke={chartColors.axis} fontSize={11} tickLine={false} axisLine={false} domain={[0, 1]} />
                     <Tooltip {...chartTooltip} />
                     <Line
                       type="monotone"
                       dataKey="ndvi"
-                      stroke="#6BE234"
-                      strokeWidth={2.5}
-                      dot={{ fill: "#6BE234", r: 3 }}
+                      stroke={chartColors.ndvi}
+                      strokeWidth={2}
+                      dot={{ fill: chartColors.ndvi, r: 2 }}
                       name="NDVI"
                     />
                   </LineChart>
@@ -532,79 +536,66 @@ function Overview() {
       </SectionCard>
 
       <SectionCard
-        title="Insight Estratégico"
+        title="Diagnóstico"
         subtitle={
           prediction?.metadata?.prediction_id
-            ? `IA · prediction #${prediction.metadata.prediction_id} · ${prediction.metadata.prompt_version ?? "v1"}`
-            : "Gere uma análise com IA para esta fazenda"
+            ? `Análise #${prediction.metadata.prediction_id} · ${prediction.metadata.prompt_version ?? "v1"}`
+            : "Resumo gerado a partir dos dados monitorados"
         }
         className="mb-6"
       >
         {!hasLlm ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
-            Nenhuma análise LLM disponível. Clique em &quot;Gerar análise&quot; ou execute o pipeline diário
-            completo no backend.
+          <div className="rounded-md border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            Nenhum diagnóstico disponível. Use &quot;Gerar diagnóstico&quot; ou aguarde a execução do pipeline diário.
           </div>
         ) : (
-          <div className="flex gap-4 rounded-lg border border-border bg-muted/30 p-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-primary">
-              <Brain className="h-4 w-4" />
-            </div>
-            <div className="space-y-2 text-sm leading-relaxed text-foreground">
-              <p>{insight?.summary}</p>
-              <p className="text-muted-foreground">{insight?.action}</p>
-              <div className="flex flex-wrap gap-2 pt-1">
+          <div className="space-y-3 rounded-md border border-border px-4 py-4 text-sm leading-relaxed text-foreground">
+            <p>{insight?.summary}</p>
+            <p className="text-muted-foreground">{insight?.action}</p>
+            {insight?.tags.length ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
                 {insight?.tags.map((t) => (
                   <span
                     key={t}
-                    className="rounded-md border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground"
+                    className="rounded border border-border px-2 py-0.5 text-xs text-muted-foreground"
                   >
                     {t}
                   </span>
                 ))}
               </div>
-            </div>
+            ) : null}
           </div>
         )}
       </SectionCard>
 
       <SectionCard
-        title="Recomendações da IA"
+        title="Ações sugeridas"
         subtitle={
           hasLlm && prediction?.acoes_recomendadas?.length
-            ? "Derivadas de /llm/predictions"
-            : "Disponível após gerar análise"
+            ? "Prioridades operacionais para os próximos dias"
+            : "Disponível após gerar diagnóstico"
         }
         action={
-          <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs text-muted-foreground">
-            {recommendations.length} ativas
-          </span>
+          hasLlm && recommendations.length > 0 ? (
+            <span className="text-xs text-muted-foreground">{recommendations.length} itens</span>
+          ) : undefined
         }
       >
         {!hasLlm || recommendations.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
-            Sem recomendações até que a IA processe os dados monitorados desta fazenda.
+          <div className="rounded-md border border-dashed border-border px-4 py-5 text-sm text-muted-foreground">
+            Sem ações sugeridas até que exista um diagnóstico para esta fazenda.
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-3">
             {recommendations.map((r) => {
               const Icon = recIcons[r.tone];
-              const tone =
-                r.tone === "primary"
-                  ? "text-primary bg-primary/10"
-                  : r.tone === "warning"
-                    ? "text-warning bg-warning/10"
-                    : "text-destructive bg-destructive/10";
               return (
-                <div key={r.title} className="rounded-lg border border-border bg-surface p-4">
-                  <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${tone}`}>
+                <div key={r.title} className="rounded-md border border-border p-4">
+                  <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
                     <Icon className="h-4 w-4" />
                   </div>
-                  <p className="text-sm font-semibold text-foreground">{r.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{r.desc}</p>
-                  <button className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                    <Activity className="h-3 w-3" /> Aplicar recomendação
-                  </button>
+                  <p className="text-sm font-medium text-foreground">{r.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{r.desc}</p>
                 </div>
               );
             })}

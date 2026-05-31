@@ -43,7 +43,7 @@ export const FarmSelector = ({
     );
   }
 
-  const label = farmDisplayName || selectedFarm?.name || "Selecionar fazenda";
+  const label = selectedFarm?.name || farmDisplayName || "Selecionar fazenda";
 
   return (
     <DropdownMenu>
@@ -69,8 +69,7 @@ export const FarmSelector = ({
         <DropdownMenuLabel>Suas fazendas</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {farms.map((farm) => {
-          const itemLabel =
-            selectedFarm?.id === farm.id ? farmDisplayName || farm.name : farm.name;
+          const itemLabel = farm.name || farmDisplayName;
           return (
           <DropdownMenuItem
             key={farm.id}

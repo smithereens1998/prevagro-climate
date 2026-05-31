@@ -26,15 +26,26 @@ export const CROP_FOCUS: CropFocus[] = FARM_CROPS.map((c) => ({
   sharePct: getCropSharePct(c.areaHa),
 }));
 
+/** Paleta neutra para gráficos — evita verde/amarelo neon de template IA. */
+export const chartColors = {
+  temp: "#c9a227",
+  rain: "#6b8cae",
+  riskHeat: "#c9a227",
+  riskWater: "#6b8cae",
+  ndvi: "#7a9e6a",
+  grid: "oklch(1 0 0 / 8%)",
+  axis: "oklch(0.68 0.012 240)",
+} as const;
+
 export const chartTooltip = {
   contentStyle: {
-    background: "oklch(0.244 0.026 240)",
-    border: "1px solid oklch(1 0 0 / 0.08)",
-    borderRadius: 12,
-    color: "#fff",
+    background: "oklch(0.2 0.012 240)",
+    border: "1px solid oklch(1 0 0 / 10%)",
+    borderRadius: 8,
+    color: "oklch(0.96 0.004 240)",
     fontSize: 12,
   },
-  cursor: { stroke: "#6BE234", strokeOpacity: 0.3 },
+  cursor: { stroke: "oklch(1 0 0 / 12%)", strokeOpacity: 1 },
 };
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];

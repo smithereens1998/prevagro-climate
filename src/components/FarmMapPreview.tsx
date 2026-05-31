@@ -139,10 +139,9 @@ export const FarmMapPreview = ({
       <div ref={containerRef} className="absolute inset-0 h-full w-full [&_.mapboxgl-ctrl-attrib]:text-[10px]" />
 
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs">
-          <span className="text-muted-foreground">Risco</span>
-          <span className="h-2 w-16 rounded-full bg-gradient-to-r from-primary via-warning to-destructive" />
-          <span className="font-medium text-foreground">
+        <div className="absolute bottom-3 left-3 rounded-md border border-border bg-background px-3 py-1.5 text-xs">
+          <span className="text-muted-foreground">Risco </span>
+          <span className="font-medium tabular-nums text-foreground">
             {riskScore != null ? `${riskScore}/100` : "—"}
           </span>
         </div>

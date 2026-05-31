@@ -11,7 +11,6 @@ export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefi
 export const PERIMETER_SOURCE = "prevagro-perimeter";
 export const PERIMETER_FILL = "prevagro-perimeter-fill";
 export const PERIMETER_LINE = "prevagro-perimeter-line";
-export const PERIMETER_GLOW = "prevagro-perimeter-glow";
 
 /** Limita pan fora da região da fazenda (Mapbox maxBounds). */
 export const paddedMaxBounds = (): [[number, number], [number, number]] => {
@@ -115,28 +114,15 @@ export const syncMapboxPerimeter = (map: any, is3D = false) => {
     });
   }
 
-  if (!map.getLayer(PERIMETER_GLOW)) {
-    map.addLayer({
-      id: PERIMETER_GLOW,
-      type: "line",
-      source: PERIMETER_SOURCE,
-      paint: {
-        "line-color": "#ffffff",
-        "line-width": 5,
-        "line-opacity": 0.55,
-      },
-    });
-  }
-
   if (!map.getLayer(PERIMETER_LINE)) {
     map.addLayer({
       id: PERIMETER_LINE,
       type: "line",
       source: PERIMETER_SOURCE,
       paint: {
-        "line-color": "#7CEC52",
-        "line-width": 2.5,
-        "line-opacity": 1,
+        "line-color": "#a8b4c0",
+        "line-width": 2,
+        "line-opacity": 0.95,
       },
     });
   }
@@ -145,7 +131,7 @@ export const syncMapboxPerimeter = (map: any, is3D = false) => {
     map.setPaintProperty(PERIMETER_FILL, "fill-opacity", 0);
   }
 
-  for (const id of [PERIMETER_FILL, PERIMETER_GLOW, PERIMETER_LINE]) {
+  for (const id of [PERIMETER_FILL, PERIMETER_LINE]) {
     if (map.getLayer(id)) map.moveLayer(id);
   }
 };
@@ -241,8 +227,8 @@ export const syncMapboxFeature = (
 ) => {
   if (!feature) return;
 
-  const fillColor = opts?.fillColor ?? "#7CEC52";
-  const fillOpacity = opts?.fillOpacity ?? 0.35;
+  const fillColor = opts?.fillColor ?? "#7a9e6a";
+  const fillOpacity = opts?.fillOpacity ?? 0.32;
   const lineColor = opts?.lineColor ?? fillColor;
 
   if (!map.getSource(PERIMETER_SOURCE)) {
@@ -266,19 +252,6 @@ export const syncMapboxFeature = (
     map.setPaintProperty(PERIMETER_FILL, "fill-opacity", fillOpacity);
   }
 
-  if (!map.getLayer(PERIMETER_GLOW)) {
-    map.addLayer({
-      id: PERIMETER_GLOW,
-      type: "line",
-      source: PERIMETER_SOURCE,
-      paint: {
-        "line-color": "#ffffff",
-        "line-width": 5,
-        "line-opacity": 0.55,
-      },
-    });
-  }
-
   if (!map.getLayer(PERIMETER_LINE)) {
     map.addLayer({
       id: PERIMETER_LINE,
@@ -286,15 +259,15 @@ export const syncMapboxFeature = (
       source: PERIMETER_SOURCE,
       paint: {
         "line-color": lineColor,
-        "line-width": 2.5,
-        "line-opacity": 1,
+        "line-width": 2,
+        "line-opacity": 0.95,
       },
     });
   } else {
     map.setPaintProperty(PERIMETER_LINE, "line-color", lineColor);
   }
 
-  for (const id of [PERIMETER_FILL, PERIMETER_GLOW, PERIMETER_LINE]) {
+  for (const id of [PERIMETER_FILL, PERIMETER_LINE]) {
     if (map.getLayer(id)) map.moveLayer(id);
   }
 };

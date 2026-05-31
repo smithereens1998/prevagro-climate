@@ -73,16 +73,21 @@ export const coordsNear = (
 export const resolveFarmDisplayName = (
   selectedFarm: FarmCoordinate | null,
   identity: FarmLatestIdentity | null,
-  farmCount: number,
+  _farmCount: number,
   fallback = "Fazenda",
 ): string => {
-  const identityName = identity?.farm_name?.trim();
-  if (identityName) {
-    if (farmCount === 1) return identityName;
-    if (selectedFarm && identity && coordsNear(identity, selectedFarm)) return identityName;
-  }
   const coordinateName = selectedFarm?.name?.trim();
   if (coordinateName) return coordinateName;
+
+  const identityName = identity?.farm_name?.trim();
+  if (
+    identityName &&
+    selectedFarm &&
+    identity &&
+    coordsNear(identity, selectedFarm)
+  ) {
+    return identityName;
+  }
   return identityName || fallback;
 };
 

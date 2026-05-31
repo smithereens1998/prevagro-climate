@@ -511,7 +511,7 @@ export function GeoMap({
             onClick={onToggle3D}
             className={cn(
               "flex h-7 w-7 items-center justify-center rounded text-xs font-medium transition-colors",
-              is3D ? "bg-primary/20 text-primary" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              is3D ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
           >
             <Box className="h-4 w-4" />

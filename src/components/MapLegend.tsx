@@ -36,14 +36,7 @@ export const MapLegend = ({ items, className }: MapLegendProps) => {
               {item.unit ? <span className="text-muted-foreground"> ({item.unit})</span> : null}
             </p>
             {item.currentValue ? (
-              <span
-                className={cn(
-                  "shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold tabular-nums",
-                  item.fromApi
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
+              <span className="shrink-0 rounded-md border border-border bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-foreground">
                 {item.currentValue}
               </span>
             ) : null}

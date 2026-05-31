@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui-bits";
 import { GeoMap } from "@/components/GeoMap";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Box, Download, Layers, Map as MapIcon } from "lucide-react";
+import { Box, Layers, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useAgroSoil,
@@ -56,7 +56,7 @@ function MapaPage() {
   const toggle = (l: string) =>
     setActive((a) => (a.includes(l) ? a.filter((x) => x !== l) : [...a, l]));
 
-  const farmLabel = farmDisplayName || activePolygon.polygon?.name || "Fazenda";
+  const farmLabel = selectedFarm?.name || farmDisplayName || activePolygon.polygon?.name || "Fazenda";
   const polygonName = activePolygon.polygon?.name;
   const apiRisk = horizon.isSuccess ? horizonToRiskScore(horizon.data) : null;
   const riskScore = apiRisk;
@@ -109,35 +109,30 @@ function MapaPage() {
 
   const polygonHint =
     activePolygon.polygonId != null
-      ? ` · Polígono ${polygonName ?? activePolygon.polygonId}`
+      ? `Polígono ${polygonName ?? activePolygon.polygonId}`
       : activePolygon.isLoading
-        ? " · Carregando polígono…"
-        : " · Sem polígono vinculado";
+        ? "Carregando polígono…"
+        : "Sem polígono vinculado";
 
   return (
     <>
       <PageHeader
-        title="Mapa Geoespacial"
-        description="Análise do perímetro da fazenda — calor, geometria e visão 3D."
+        title="Mapa"
+        description={`${farmLabel} — camadas de risco, vegetação e solo sobre o perímetro cadastrado.`}
         action={
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-pressed={is3D}
-              onClick={() => setIs3D((v) => !v)}
-              className={cn(is3D && "border-primary/40 bg-primary/10 text-foreground")}
-            >
-              <Box className="h-4 w-4" /> {is3D ? "Visão 2D" : "Visão 3D"}
-            </Button>
-            <Button size="sm" variant="outline">
-              <Download className="h-4 w-4" /> Exportar
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed={is3D}
+            onClick={() => setIs3D((v) => !v)}
+            className={cn(is3D && "border-foreground/20 bg-muted")}
+          >
+            <Box className="h-4 w-4" /> {is3D ? "Visão 2D" : "Visão 3D"}
+          </Button>
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
         <div className="flex min-w-0 flex-col gap-4">
           <GeoMap
             className="h-[calc(100vh-320px)] min-h-[420px]"
@@ -159,35 +154,36 @@ function MapaPage() {
           />
 
           <section className="panel rounded-lg p-4">
-            <p className="text-xs text-muted-foreground">Perímetro analisado</p>
-            <h3 className="mt-1 text-lg font-semibold text-foreground">{farmLabel}</h3>
-            <p className="text-xs text-muted-foreground">
-              {farmLocationLabel ??
-                (polygonName ? `Polígono AgroMonitoring · ${polygonName}` : "Coordenadas da fazenda ativa")}
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Dados via API
-              {polygonHint}
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Perímetro</p>
+                <h3 className="mt-1 text-base font-semibold text-foreground">{farmLabel}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {farmLocationLabel ??
+                    (polygonName ? `Polígono AgroMonitoring · ${polygonName}` : "Coordenadas da fazenda ativa")}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{polygonHint}</p>
+              </div>
+            </div>
 
-            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+            <dl className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:grid-cols-6">
               {metrics.map((item) => (
-                <div key={item.k} className="rounded-lg border border-border bg-surface p-3">
-                  <dt className="text-xs text-muted-foreground">{item.k}</dt>
-                  <dd className="mt-1 text-base font-semibold text-foreground">{item.v}</dd>
+                <div key={item.k} className="rounded-md border border-border px-3 py-2.5">
+                  <dt className="text-[11px] text-muted-foreground">{item.k}</dt>
+                  <dd className="mt-0.5 text-sm font-medium tabular-nums text-foreground">{item.v}</dd>
                 </div>
               ))}
             </dl>
           </section>
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-20 lg:self-start">
           <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-              <Layers className="h-4 w-4 text-primary" />
+              <Layers className="h-4 w-4 text-muted-foreground" />
               Camadas
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {LAYER_IDS.map((id) => {
                 const meta = LAYER_META[id];
                 const on = active.includes(id);
@@ -199,15 +195,15 @@ function MapaPage() {
                     aria-pressed={on}
                     aria-label={meta.label}
                     className={cn(
-                      "flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                      "flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors",
                       on
-                        ? "border-primary/40 bg-primary/10 text-foreground"
-                        : "border-border bg-surface/60 text-muted-foreground hover:text-foreground",
+                        ? "border-foreground/15 bg-muted text-foreground"
+                        : "border-transparent text-muted-foreground hover:border-border hover:bg-surface hover:text-foreground",
                     )}
                   >
-                    <span className="font-medium">{meta.label}</span>
+                    <span>{meta.label}</span>
                     <span
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      className="h-2 w-2 shrink-0 rounded-full border border-border"
                       style={{ backgroundColor: rgbToHex(layerGeometryColor(id, layerMetrics)) }}
                       aria-hidden
                     />
@@ -219,15 +215,15 @@ function MapaPage() {
 
           <section className="panel rounded-lg p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-              <MapIcon className="h-4 w-4 text-primary" />
+              <MapIcon className="h-4 w-4 text-muted-foreground" />
               Basemap
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {BASEMAPS.map((b) => (
                 <Button
                   key={b.id}
                   size="sm"
-                  variant={basemap === b.id ? "default" : "outline"}
+                  variant={basemap === b.id ? "secondary" : "outline"}
                   onClick={() => setBasemap(b.id)}
                 >
                   {b.label}
@@ -237,7 +233,7 @@ function MapaPage() {
           </section>
 
           <section className="panel rounded-lg p-4">
-            <p className="mb-3 text-sm font-medium text-foreground">Opacidade das camadas</p>
+            <p className="mb-3 text-sm font-medium text-foreground">Opacidade</p>
             <Slider
               value={[layerOpacity * 100]}
               onValueChange={(v) => setLayerOpacity(v[0] / 100)}
