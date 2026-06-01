@@ -1,10 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { NAV_ITEMS } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { Leaf, X } from "lucide-react";
+import { Leaf, LogOut, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useSidebarLayout } from "@/components/layout/sidebar-context";
+import { useAuth } from "@/lib/auth/auth-context";
+import { getSessionInitials } from "@/lib/auth/session";
 
 type SidebarNavProps = {
   onNavigate?: () => void;
@@ -14,6 +16,9 @@ type SidebarNavProps = {
 
 const SidebarNav = ({ onNavigate, showClose, onClose }: SidebarNavProps) => {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { session, logout } = useAuth();
+  const initials = getSessionInitials(session);
+  const displayName = session?.email?.split("@")[0] ?? "Usuário";
 
   return (
     <>
@@ -40,9 +45,7 @@ const SidebarNav = ({ onNavigate, showClose, onClose }: SidebarNavProps) => {
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-5">
-        <p className="px-3 pb-2 text-[11px] font-medium text-muted-foreground">
-          Plataforma
-        </p>
+        <p className="px-3 pb-2 text-[11px] font-medium text-muted-foreground">Plataforma</p>
         <ul className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.to;
@@ -73,14 +76,24 @@ const SidebarNav = ({ onNavigate, showClose, onClose }: SidebarNavProps) => {
 
       <div className="m-3 rounded-lg border border-sidebar-border bg-sidebar-accent/50 p-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
-            JS
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
+            {initials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">João Silva</p>
-            <p className="truncate text-xs text-muted-foreground">Produtor Rural</p>
+            <p className="truncate text-sm font-medium capitalize text-foreground">{displayName}</p>
+            <p className="truncate text-xs text-muted-foreground">{session?.email ?? "—"}</p>
           </div>
         </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-3 w-full justify-start gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => logout()}
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </Button>
       </div>
     </>
   );

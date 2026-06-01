@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/ui-bits";
 import { Button } from "@/components/ui/button";
-import { Camera, Bell, Shield, Plug } from "lucide-react";
+import { Bell, LogOut, Shield, Plug } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/auth-context";
+import { getSessionInitials } from "@/lib/auth/session";
 import { useFarm } from "@/lib/farm/farm-context";
 import { formatCoordinatePair } from "@/lib/api/normalize";
 import { useUpdateCoordinateMutation } from "@/lib/api/hooks";
@@ -73,23 +75,41 @@ function Field({ label, ...p }: { label: string } & React.InputHTMLAttributes<HT
 }
 
 function ProfileTab() {
+  const { session, logout } = useAuth();
+  const initials = getSessionInitials(session);
+  const displayName = session?.email?.split("@")[0] ?? "Usuário";
+
   return (
-    <SectionCard title="Perfil" subtitle="Suas informações pessoais">
+    <SectionCard title="Conta" subtitle="Sessão ativa e informações de acesso">
       <div className="mb-6 flex items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted text-xl font-semibold text-foreground">
-          JS
+          {initials}
         </div>
-        <Button variant="outline" size="sm"><Camera className="h-4 w-4" /> Trocar foto</Button>
+        <div>
+          <p className="text-sm font-medium capitalize text-foreground">{displayName}</p>
+          <p className="text-sm text-muted-foreground">{session?.email ?? "—"}</p>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Nome" defaultValue="João Silva" />
-        <Field label="Email" type="email" defaultValue="joao@fazendasaojoao.com.br" />
-        <Field label="Telefone" defaultValue="+55 11 98765-4321" />
-        <Field label="Cargo" defaultValue="Produtor Rural" />
+        <Field label="Email" type="email" value={session?.email ?? ""} readOnly />
+        <Field label="Nome" defaultValue={displayName} placeholder="Nome de exibição" />
+        <Field label="Telefone" placeholder="+55 11 98765-4321" />
+        <Field label="Cargo" placeholder="Produtor Rural" />
       </div>
-      <div className="mt-6 flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button>Salvar alterações</Button>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={() => logout()}
+        >
+          <LogOut className="h-4 w-4" />
+          Sair da conta
+        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline">Cancelar</Button>
+          <Button>Salvar alterações</Button>
+        </div>
       </div>
     </SectionCard>
   );
@@ -280,9 +300,25 @@ function IntegrationsTab() {
 }
 
 function SecurityTab() {
+  const { session, logout } = useAuth();
+
   return (
     <SectionCard title="Segurança" subtitle="Proteção da conta">
       <div className="space-y-4">
+        <div className="rounded-xl border border-border bg-surface/60 p-4">
+          <p className="text-xs font-medium text-muted-foreground">Conta conectada</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{session?.email ?? "—"}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => logout()}
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
+        </div>
         <div className="flex items-center justify-between rounded-xl border border-border bg-surface/60 p-4">
           <div className="flex items-center gap-3">
             <Shield className="h-5 w-5 text-primary" />
