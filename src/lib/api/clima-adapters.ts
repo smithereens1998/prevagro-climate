@@ -1,14 +1,15 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Cloud,
-  CloudLightning,
   CloudRain,
-  CloudSnow,
   Droplets,
-  Sun,
+  ThermometerSun,
   Wind,
 } from "lucide-react";
+import type { WeatherCondition } from "@/lib/clima/weather-conditions";
+import { resolveWeatherCondition, weatherConditionLabel } from "@/lib/clima/weather-conditions";
 import type { FarmMonitoringObservation, SeasonalForecastDay, SeasonalForecastDaily } from "./types";
+
+export type { WeatherCondition } from "@/lib/clima/weather-conditions";
 
 export type ClimaKpi = {
   id: string;
@@ -47,7 +48,7 @@ export const buildClimaKpis = (
             : "—",
       unit: "°C",
       tone: (avgTemp ?? currentTemp) != null && (avgTemp ?? currentTemp)! >= 32 ? "warning" : "default",
-      icon: Sun,
+      icon: ThermometerSun,
     },
     {
       id: "rain",
@@ -85,41 +86,26 @@ const formatWeekdayLabel = (isoDate: string, index: number) => {
   return WEEKDAYS[date.getUTCDay()] ?? `D${index + 1}`;
 };
 
-const resolveWeatherVisual = (day: SeasonalForecastDay) => {
-  const rain = day.precipitation_mm ?? 0;
-  const temp = day.temp_mean_c ?? 24;
-
-  if (day.dry_day_flag && rain < 1) {
-    return temp >= 28
-      ? { icon: Sun, label: "Ensolarado" }
-      : { icon: Cloud, label: "Sem chuva" };
-  }
-  if (rain >= 15) return { icon: CloudLightning, label: "Chuva forte" };
-  if (rain >= 5) return { icon: CloudRain, label: "Chuva" };
-  if (rain > 0) return { icon: CloudRain, label: "Chuva leve" };
-  if (temp <= 12) return { icon: CloudSnow, label: "Frio" };
-  return { icon: Cloud, label: "Nublado" };
-};
 
 export type WeekForecastCard = {
   key: string;
   label: string;
   tempMax: number | null;
   tempMin: number | null;
-  icon: LucideIcon;
-  condition: string;
+  condition: WeatherCondition;
+  conditionLabel: string;
 };
 
 export const forecastToWeekCards = (forecast: SeasonalForecastDay[]): WeekForecastCard[] =>
   forecast.slice(0, 7).map((day, index) => {
-    const visual = resolveWeatherVisual(day);
+    const condition = resolveWeatherCondition(day);
     return {
       key: day.forecast_date,
       label: formatWeekdayLabel(day.forecast_date, index),
       tempMax: day.temp_max_c ?? day.temp_mean_c,
       tempMin: day.temp_min_c ?? day.temp_mean_c,
-      icon: visual.icon,
-      condition: visual.label,
+      condition,
+      conditionLabel: weatherConditionLabel[condition],
     };
   });
 

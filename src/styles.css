@@ -11,6 +11,14 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+
+  /* Paleta Prevagro */
+  --color-brand-dark: #0F3A1F;
+  --color-brand-forest: #2E6F1E;
+  --color-brand-agri: #4E8026;
+  --color-brand-light: #77A83B;
+  --color-brand-sun: #E4B53A;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
@@ -43,45 +51,48 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  --background: oklch(0.16 0.012 240);
-  --foreground: oklch(0.96 0.004 240);
-  --surface: oklch(0.19 0.012 240);
-  --card: oklch(0.2 0.012 240);
-  --card-foreground: oklch(0.96 0.004 240);
-  --popover: oklch(0.2 0.012 240);
-  --popover-foreground: oklch(0.96 0.004 240);
+  /* Fundo branco + verdes agrícolas */
+  --background: #FFFFFF;
+  --foreground: #0F3A1F;
+  --surface: #F7FAF4;
+  --card: #FFFFFF;
+  --card-foreground: #0F3A1F;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F3A1F;
 
-  --primary: oklch(0.72 0.17 138);
-  --primary-foreground: oklch(0.16 0.012 240);
-  --secondary: oklch(0.55 0.12 138);
-  --secondary-foreground: oklch(0.96 0.004 240);
+  --primary: #0F3A1F;
+  --primary-foreground: #FFFFFF;
+  --secondary: #2E6F1E;
+  --secondary-foreground: #FFFFFF;
 
-  --muted: oklch(0.24 0.012 240);
-  --muted-foreground: oklch(0.68 0.012 240);
-  --accent: oklch(0.24 0.014 240);
-  --accent-foreground: oklch(0.96 0.004 240);
+  --muted: #EEF4E8;
+  --muted-foreground: #3D5234;
+  --accent: #E8F2DC;
+  --accent-foreground: #0F3A1F;
 
-  --destructive: oklch(0.58 0.2 22);
-  --destructive-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.72 0.14 80);
-  --warning-foreground: oklch(0.16 0.012 240);
-  --success: oklch(0.72 0.17 138);
-  --success-foreground: oklch(0.16 0.012 240);
+  --destructive: #C0392B;
+  --destructive-foreground: #FFFFFF;
+  --warning: #E4B53A;
+  --warning-foreground: #0F3A1F;
+  --success: #77A83B;
+  --success-foreground: #0F3A1F;
 
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.72 0.17 138 / 45%);
+  --border: rgb(15 58 31 / 16%);
+  --input: rgb(15 58 31 / 22%);
+  --ring: rgb(15 58 31 / 35%);
 
-  --sidebar: oklch(0.18 0.012 240);
-  --sidebar-foreground: oklch(0.68 0.012 240);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-accent: oklch(0.23 0.014 240);
-  --sidebar-accent-foreground: oklch(0.96 0.004 240);
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #2E6F1E;
+  --sidebar-border: #D8E5D0;
+  --sidebar-accent: #EEF5E8;
+  --sidebar-accent-foreground: #0F3A1F;
 }
 
-.dark { color-scheme: dark; }
+.dark {
+  color-scheme: dark;
+}
 
 @layer base {
   * { border-color: var(--color-border); }
@@ -97,18 +108,44 @@
   .panel {
     background: var(--color-card);
     border: 1px solid var(--color-border);
-    box-shadow: none;
+    box-shadow: 0 1px 3px rgb(15 58 31 / 0.06), 0 1px 2px rgb(15 58 31 / 0.04);
+  }
+
+  .brand-gradient-soft {
+    background: linear-gradient(165deg, #FFFFFF 0%, #F4FAEF 40%, #E8F2DC 100%);
+  }
+
+  .brand-field-pattern {
+    background-image: repeating-linear-gradient(
+      105deg,
+      transparent,
+      transparent 48px,
+      rgb(119 168 59 / 0.08) 48px,
+      rgb(119 168 59 / 0.08) 49px
+    );
+  }
+
+  .brand-top-bar {
+    border-top: 3px solid #0F3A1F;
+  }
+
+  .brand-accent-bar {
+    border-left: 4px solid #0F3A1F;
+  }
+
+  .brand-sidebar-header {
+    background: linear-gradient(180deg, #0F3A1F 0%, #123822 100%);
   }
 }
 
-/* Popup Mapbox — não herdar cor clara do tema escuro sobre fundo branco padrão */
+/* Popup Mapbox */
 .prevagro-map-popup .mapboxgl-popup-content {
   background: var(--color-card);
   color: var(--color-foreground);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 12px 14px;
-  box-shadow: 0 12px 32px oklch(0 0 0 / 0.45);
+  box-shadow: 0 8px 24px rgb(15 58 31 / 0.12);
 }
 
 .prevagro-map-popup .mapboxgl-popup-close-button {

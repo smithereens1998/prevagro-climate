@@ -25,9 +25,9 @@ export const OverviewFarmHero = ({
   onRefresh,
   onGenerate,
 }: OverviewFarmHeroProps) => (
-  <div className="mb-6 flex flex-col gap-4 rounded-xl border border-border bg-surface/80 p-4 md:flex-row md:items-start md:justify-between md:p-5">
+  <div className="brand-accent-bar mb-6 flex flex-col gap-4 rounded-xl border border-border bg-gradient-to-br from-white via-surface to-brand-dark/[0.04] p-4 md:flex-row md:items-start md:justify-between md:p-5">
     <div className="min-w-0 space-y-1.5">
-      <h1 className="truncate text-xl font-semibold tracking-tight text-foreground md:text-2xl">
+      <h1 className="truncate text-xl font-semibold tracking-tight text-brand-dark md:text-2xl">
         {farmName}
       </h1>
       <p className="text-sm text-muted-foreground">{locationLine}</p>
@@ -46,7 +46,7 @@ export const OverviewFarmHero = ({
         )}
         Atualizar
       </Button>
-      <Button variant="outline" size="sm" onClick={onGenerate} disabled={isGenerating || !canGenerate}>
+      <Button size="sm" onClick={onGenerate} disabled={isGenerating || !canGenerate}>
         {isGenerating ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (

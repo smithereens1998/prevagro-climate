@@ -19,7 +19,7 @@ function AppLayoutContent() {
   const { isOpen } = useSidebarLayout();
 
   return (
-    <div className="min-h-screen dark bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar />
       <div
         className={cn(

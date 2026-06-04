@@ -15,6 +15,11 @@ import {
   MAPBOX_TOKEN,
   syncMapboxFeature,
 } from "@/lib/geo/mapbox-shared";
+import {
+  cancelMapAnimations,
+  fitMapBoundsWithReveal,
+  revealMapboxFeatureColors,
+} from "@/lib/geo/map-feature-animation";
 import { riskScoreToFillColor, type GeoJsonFeature } from "@/lib/farm/polygon-utils";
 import { SatelliteMap } from "@/components/SatelliteMap";
 
@@ -79,6 +84,14 @@ export const FarmMapPreview = ({
             lineColor: fillColor,
           });
 
+          revealMapboxFeatureColors(map, {
+            fillColor,
+            fillOpacity: 0.42,
+            lineColor: fillColor,
+            durationMs: 1500,
+            delayMs: 250,
+          });
+
           const areaLabel = areaHa != null ? `${areaHa} ha` : "—";
           bindFeaturePopup(
             map,
@@ -96,7 +109,7 @@ export const FarmMapPreview = ({
           );
 
           addMapControls(map, mapboxgl, { scale: true, navigation: false });
-          map.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 13 });
+          fitMapBoundsWithReveal(map, bounds, { padding: 48, duration: 1400, maxZoom: 13 });
           setFailed(false);
         });
       } catch {
@@ -106,6 +119,7 @@ export const FarmMapPreview = ({
 
     return () => {
       cancelled = true;
+      cancelMapAnimations(mapRef.current);
       mapRef.current?.remove();
       mapRef.current = null;
     };

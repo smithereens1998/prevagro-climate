@@ -49,10 +49,10 @@ export const AiDiagnosisCard = ({
         <div className="flex flex-col items-center gap-4 border border-dashed border-border bg-surface/40 px-6 py-10 text-center">
           <div className="relative flex h-16 w-16 items-center justify-center">
             <div
-              className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/25 via-primary/5 to-transparent"
+              className="absolute inset-0 rounded-full bg-gradient-to-br from-brand-dark/20 via-brand-light/10 to-transparent"
               aria-hidden
             />
-            <Sparkles className="relative h-7 w-7 text-primary" aria-hidden />
+            <Sparkles className="relative h-7 w-7 text-brand-dark" aria-hidden />
           </div>
           <div className="max-w-md space-y-1">
             <p className="text-sm font-medium text-foreground">Diagnóstico inteligente</p>
@@ -65,7 +65,7 @@ export const AiDiagnosisCard = ({
               type="button"
               onClick={onGenerate}
               disabled={isGenerating}
-              className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15 disabled:opacity-50"
+              className="rounded-lg border border-brand-dark/25 bg-brand-dark px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark/90 disabled:opacity-50"
               aria-label="Gerar diagnóstico com IA"
             >
               {isGenerating ? "Gerando…" : "Gerar diagnóstico"}
@@ -73,13 +73,13 @@ export const AiDiagnosisCard = ({
           )}
         </div>
       ) : (
-        <div className="relative border-l-4 border-l-primary bg-gradient-to-r from-primary/10 via-transparent to-transparent p-5 md:p-6">
+        <div className="relative border-l-4 border-l-brand-dark bg-gradient-to-r from-brand-dark/10 via-transparent to-transparent p-5 md:p-6">
           <div className="absolute right-4 top-4 opacity-20" aria-hidden>
-            <Brain className="h-16 w-16 text-primary" />
+            <Brain className="h-16 w-16 text-brand-dark" />
           </div>
           <div className="relative space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+              <span className="rounded-full bg-brand-dark px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-white">
                 IA · Gemini
               </span>
               {prediction?.metadata?.prediction_id != null && (

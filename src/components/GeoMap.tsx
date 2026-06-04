@@ -54,6 +54,12 @@ import {
   type MapGeoJsonFeature,
 } from "@/lib/geo/mapbox-shared";
 import { riskScoreToFillColor } from "@/lib/farm/polygon-utils";
+import {
+  cancelMapAmbientAnimation,
+  cancelMapAnimations,
+  revealMapboxPaintTargets,
+  type RevealPaintTarget,
+} from "@/lib/geo/map-feature-animation";
 
 type GeoMapProps = {
   className?: string;
@@ -124,8 +130,10 @@ const syncMapboxDataLayers = (
   perimeterGeoJson: typeof FARM_PERIMETER,
   metrics: FarmMetrics,
 ) => {
+  cancelMapAmbientAnimation(map);
   removeMapboxDataLayers(map);
   const heatOptions = { perimeter: perimeterGeoJson, metrics };
+  const revealTargets: RevealPaintTarget[] = [];
 
   for (const layerId of activeLayers.filter(isLayerId)) {
     const meta = LAYER_META[layerId];
@@ -133,21 +141,27 @@ const syncMapboxDataLayers = (
     const sourceId = `${DATA_LAYER_PREFIX}-${layerId}`;
 
     if (kind === "heatmap") {
+      const heatLayerId = `${sourceId}-heat`;
       map.addSource(sourceId, {
         type: "geojson",
         data: makeHeatGeoJSON(meta.heatMetric, heatOptions),
       });
       map.addLayer({
-        id: `${sourceId}-heat`,
+        id: heatLayerId,
         type: "heatmap",
         source: sourceId,
         paint: {
           "heatmap-weight": ["get", "weight"],
           "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 10, 0.9, 14, 1.5],
           "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 10, 28, 14, 50],
-          "heatmap-opacity": opacity,
+          "heatmap-opacity": 0,
           "heatmap-color": heatmapColorExpression(heatRangeForLayer(layerId)),
         },
+      });
+      revealTargets.push({
+        layerId: heatLayerId,
+        property: "heatmap-opacity",
+        target: opacity,
       });
       continue;
     }
@@ -155,33 +169,49 @@ const syncMapboxDataLayers = (
     if (!is3D) continue;
 
     if (kind === "columns" && meta.columnValue) {
+      const extrusionLayerId = `${sourceId}-extrusion`;
       map.addSource(sourceId, { type: "geojson", data: perimeterGeoJson });
       map.addLayer({
-        id: `${sourceId}-extrusion`,
+        id: extrusionLayerId,
         type: "fill-extrusion",
         source: sourceId,
         paint: {
           "fill-extrusion-color": rgbToHex(layerGeometryColor(layerId, metrics)),
           "fill-extrusion-height": (meta.columnValue?.() ?? metrics[meta.heatMetric]) * 4,
-          "fill-extrusion-opacity": opacity * 0.85,
+          "fill-extrusion-opacity": 0,
           "fill-extrusion-base": 0,
         },
+      });
+      revealTargets.push({
+        layerId: extrusionLayerId,
+        property: "fill-extrusion-opacity",
+        target: opacity * 0.85,
       });
       continue;
     }
 
     if (kind === "geometry") {
+      const fillLayerId = `${sourceId}-fill`;
       map.addSource(sourceId, { type: "geojson", data: perimeterGeoJson });
       map.addLayer({
-        id: `${sourceId}-fill`,
+        id: fillLayerId,
         type: "fill",
         source: sourceId,
         paint: {
           "fill-color": rgbToHex(layerGeometryColor(layerId, metrics)),
-          "fill-opacity": opacity * 0.72,
+          "fill-opacity": 0,
         },
       });
+      revealTargets.push({
+        layerId: fillLayerId,
+        property: "fill-opacity",
+        target: opacity * 0.72,
+      });
     }
+  }
+
+  if (revealTargets.length > 0) {
+    revealMapboxPaintTargets(map, revealTargets, { durationMs: 1100, staggerMs: 140 });
   }
 };
 
@@ -320,7 +350,7 @@ export function GeoMap({
           addMapControls(map, mapboxgl, { scale: true, navigation: false });
           syncPerimeter(map, is3D);
           attachDeckOverlay(map);
-          map.fitBounds(fitBoundsData, { padding: 64, duration: 0 });
+          map.fitBounds(fitBoundsData, { padding: 64, duration: 1200, maxZoom: 14 });
           setReady(true);
         });
       } catch (err) {
@@ -331,6 +361,7 @@ export function GeoMap({
 
     return () => {
       cancelled = true;
+      cancelMapAnimations(mapRef.current);
       mapRef.current?.remove();
       mapRef.current = null;
       overlayRef.current = null;
@@ -384,20 +415,21 @@ export function GeoMap({
     const map = mapRef.current;
     const syncLayers = () => {
       const { GeoJsonLayer, ColumnLayer } = libsRef.current;
-      const layers: any[] = [];
       const alpha = layerOpacity;
       const [cx, cy] = mapCenter;
 
-      if (!is3D) {
+      const buildDeckLayers = (layerAlpha: number) => {
+        const deckLayers: any[] = [];
+        if (is3D) return deckLayers;
+
         for (const layerId of activeLayers.filter(isLayerId)) {
           const meta = LAYER_META[layerId];
           const kind = resolveVizKind(layerId, vizMode);
-
           if (kind === "heatmap") continue;
 
           if (kind === "columns" && meta.columnValue) {
             const metricValue = layerMetrics[meta.heatMetric];
-            layers.push(
+            deckLayers.push(
               new ColumnLayer({
                 id: `col-${layerId}`,
                 data: [{ position: [cx, cy], value: metricValue }],
@@ -405,32 +437,53 @@ export function GeoMap({
                 radius: 900,
                 extruded: true,
                 elevationScale: 30 * alpha,
-                opacity: alpha,
+                opacity: layerAlpha,
                 getPosition: (d) => d.position,
                 getElevation: (d) => d.value,
                 getFillColor: (d) => toRgba(prodColor(d.value), 220),
+                transitions: {
+                  opacity: {
+                    duration: 1200,
+                    easing: (t: number) => 1 - (1 - t) ** 3,
+                  },
+                },
               }),
             );
             continue;
           }
 
-          layers.push(
+          deckLayers.push(
             new GeoJsonLayer({
               id: `geom-${layerId}`,
               data: perimeterData,
               filled: true,
               stroked: false,
-              opacity: alpha,
+              opacity: layerAlpha,
               getFillColor: () => fillColorForMetrics(layerId, layerMetrics, alpha),
               pickable: false,
+              transitions: {
+                opacity: {
+                  duration: 1200,
+                  easing: (t: number) => 1 - (1 - t) ** 3,
+                },
+              },
             }),
           );
         }
-      }
 
+        return deckLayers;
+      };
+
+      const layers = buildDeckLayers(0);
       overlayRef.current.setProps({ layers });
       syncMapboxDataLayers(map, activeLayers, vizMode, layerOpacity, is3D, perimeterData, layerMetrics);
       syncPerimeter(map, is3D);
+
+      if (layers.length > 0) {
+        requestAnimationFrame(() => {
+          overlayRef.current?.setProps({ layers: buildDeckLayers(alpha) });
+        });
+      }
     };
 
     if (map?.isStyleLoaded()) {

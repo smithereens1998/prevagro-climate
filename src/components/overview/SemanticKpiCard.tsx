@@ -35,11 +35,11 @@ export const SemanticKpiCard = ({
         <div
           className={cn(
             "flex shrink-0 items-center justify-center rounded-full",
-            compact ? "h-8 w-8" : "h-9 w-9",
+            compact ? "h-8 w-8" : "h-10 w-10",
             visual.iconBgClass,
           )}
         >
-          <Icon className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4", visual.iconTextClass)} />
+          <Icon className={cn(compact ? "h-4 w-4" : "h-5 w-5", visual.iconTextClass)} strokeWidth={2} />
         </div>
         <div className="flex flex-col items-end gap-1">
           {value !== "—" && (

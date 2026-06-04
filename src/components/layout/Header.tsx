@@ -15,12 +15,12 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background px-4 md:px-6">
+    <header className="brand-top-bar sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background px-4 md:px-6">
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="shrink-0 text-muted-foreground hover:text-foreground"
+        className="shrink-0 text-brand-dark hover:bg-brand-dark/8"
         onClick={handleToggleSidebar}
         aria-label={isOpen ? "Fechar menu lateral" : "Abrir menu lateral"}
       >
@@ -30,11 +30,11 @@ export function Header() {
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <FarmSelector />
         <div
-          className="hidden items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground md:flex"
+          className="hidden items-center gap-2 rounded-lg bg-brand-dark px-3 py-1.5 text-sm text-white md:flex"
           title="Janela operacional da previsão climática exibida no painel"
           aria-label="Previsão climática de 30 dias"
         >
-          <Calendar className="h-4 w-4 shrink-0" aria-hidden />
+          <Calendar className="h-4 w-4 shrink-0 text-brand-sun" aria-hidden />
           <span>Previsão 30 dias</span>
         </div>
       </div>

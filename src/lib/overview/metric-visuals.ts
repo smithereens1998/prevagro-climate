@@ -13,22 +13,22 @@ export type MetricVisualBand = {
 
 const favorable: MetricVisualBand = {
   label: "Favorável",
-  borderClass: "border-l-emerald-500",
-  bgClass: "bg-emerald-500/5",
-  iconBgClass: "bg-emerald-500/15",
-  iconTextClass: "text-emerald-600 dark:text-emerald-400",
-  badgeClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  valueClass: "text-emerald-700 dark:text-emerald-300",
+  borderClass: "border-l-brand-light",
+  bgClass: "bg-brand-light/8",
+  iconBgClass: "bg-brand-light/20",
+  iconTextClass: "text-brand-forest",
+  badgeClass: "border-brand-light/40 bg-brand-light/15 text-brand-dark",
+  valueClass: "text-brand-forest",
 };
 
 const attention: MetricVisualBand = {
   label: "Atenção",
-  borderClass: "border-l-amber-500",
-  bgClass: "bg-amber-500/5",
-  iconBgClass: "bg-amber-500/15",
-  iconTextClass: "text-amber-600 dark:text-amber-400",
-  badgeClass: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  valueClass: "text-amber-700 dark:text-amber-300",
+  borderClass: "border-l-brand-sun",
+  bgClass: "bg-brand-sun/8",
+  iconBgClass: "bg-brand-sun/20",
+  iconTextClass: "text-brand-sun",
+  badgeClass: "border-brand-sun/40 bg-brand-sun/15 text-brand-dark",
+  valueClass: "text-brand-dark",
 };
 
 const critical: MetricVisualBand = {
@@ -73,12 +73,22 @@ const hot: MetricVisualBand = {
 
 const balanced: MetricVisualBand = {
   label: "Equilibrado",
-  borderClass: "border-l-teal-500",
-  bgClass: "bg-teal-500/5",
-  iconBgClass: "bg-teal-500/15",
-  iconTextClass: "text-teal-600 dark:text-teal-400",
-  badgeClass: "border-teal-500/30 bg-teal-500/10 text-teal-700 dark:text-teal-300",
-  valueClass: "text-teal-700 dark:text-teal-300",
+  borderClass: "border-l-brand-agri",
+  bgClass: "bg-brand-agri/8",
+  iconBgClass: "bg-brand-agri/15",
+  iconTextClass: "text-brand-agri",
+  badgeClass: "border-brand-agri/30 bg-brand-agri/10 text-brand-dark",
+  valueClass: "text-brand-agri",
+};
+
+const mediumSoil: MetricVisualBand = {
+  label: "Médio",
+  borderClass: "border-l-brand-agri",
+  bgClass: "bg-brand-agri/8",
+  iconBgClass: "bg-brand-agri/15",
+  iconTextClass: "text-brand-agri",
+  badgeClass: "border-brand-agri/30 bg-brand-agri/10 text-brand-dark",
+  valueClass: "text-brand-agri",
 };
 
 const high: MetricVisualBand = {
@@ -93,32 +103,22 @@ const high: MetricVisualBand = {
 
 const dry: MetricVisualBand = {
   label: "Seco",
-  borderClass: "border-l-amber-500",
-  bgClass: "bg-amber-500/5",
-  iconBgClass: "bg-amber-500/15",
-  iconTextClass: "text-amber-600 dark:text-amber-400",
-  badgeClass: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  valueClass: "text-amber-700 dark:text-amber-300",
+  borderClass: "border-l-brand-sun",
+  bgClass: "bg-brand-sun/8",
+  iconBgClass: "bg-brand-sun/20",
+  iconTextClass: "text-brand-sun",
+  badgeClass: "border-brand-sun/40 bg-brand-sun/15 text-brand-dark",
+  valueClass: "text-brand-dark",
 };
 
 const lowSoil: MetricVisualBand = {
   label: "Baixo",
-  borderClass: "border-l-amber-500",
-  bgClass: "bg-amber-500/5",
-  iconBgClass: "bg-amber-500/15",
-  iconTextClass: "text-amber-600 dark:text-amber-400",
-  badgeClass: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  valueClass: "text-amber-700 dark:text-amber-300",
-};
-
-const mediumSoil: MetricVisualBand = {
-  label: "Médio",
-  borderClass: "border-l-primary/60",
-  bgClass: "bg-primary/5",
-  iconBgClass: "bg-primary/15",
-  iconTextClass: "text-primary",
-  badgeClass: "border-primary/30 bg-primary/10 text-primary",
-  valueClass: "text-primary",
+  borderClass: "border-l-brand-sun",
+  bgClass: "bg-brand-sun/8",
+  iconBgClass: "bg-brand-sun/20",
+  iconTextClass: "text-brand-sun",
+  badgeClass: "border-brand-sun/40 bg-brand-sun/15 text-brand-dark",
+  valueClass: "text-brand-dark",
 };
 
 const parseNumber = (value: string): number | null => {
@@ -172,4 +172,32 @@ export const getForecastMetricVisual = (metric: Forecast30Metric): MetricVisualB
     default:
       return neutral;
   }
+};
+
+export const getClimaKpiVisual = (id: string, value: string): MetricVisualBand => {
+  switch (id) {
+    case "temp":
+      return getKpiVisual("temp", value);
+    case "rain": {
+      const num = parseNumber(value);
+      if (num == null) return neutral;
+      if (num < 30) return attention;
+      return balanced;
+    }
+    case "humidity":
+      return getKpiVisual("umidade", value);
+    case "wind": {
+      const num = parseNumber(value);
+      if (num == null) return neutral;
+      if (num >= 40) return attention;
+      return neutral;
+    }
+    default:
+      return neutral;
+  }
+};
+
+export const getRiskScoreVisual = (score: number | null): MetricVisualBand => {
+  if (score == null) return neutral;
+  return riskBand(score);
 };

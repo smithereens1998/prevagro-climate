@@ -61,11 +61,11 @@ export function SectionCard({
   className?: string;
 }) {
   return (
-    <section className={cn("panel rounded-lg p-4 md:p-5", className)}>
+    <section className={cn("panel brand-accent-bar rounded-lg p-4 md:p-5", className)}>
       {(title || action) && (
         <header className="mb-4 flex items-start justify-between gap-4">
           <div>
-            {title && <h3 className="text-sm font-semibold text-foreground">{title}</h3>}
+            {title && <h3 className="text-sm font-semibold text-brand-dark">{title}</h3>}
             {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
           </div>
           {action}
@@ -89,7 +89,7 @@ export function PageHeader({
     <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div>
         {title && (
-          <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{title}</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-brand-dark md:text-2xl">{title}</h1>
         )}
         {description && (
           <p className={cn(!title && "text-base text-foreground/90", title && "mt-1", "max-w-3xl text-sm text-muted-foreground")}>

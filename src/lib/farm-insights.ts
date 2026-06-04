@@ -26,26 +26,27 @@ export const CROP_FOCUS: CropFocus[] = FARM_CROPS.map((c) => ({
   sharePct: getCropSharePct(c.areaHa),
 }));
 
-/** Paleta neutra para gráficos — evita verde/amarelo neon de template IA. */
+/** Paleta alinhada à identidade Prevagro (branco + verde agrícola). */
 export const chartColors = {
-  temp: "#c9a227",
-  rain: "#6b8cae",
-  riskHeat: "#c9a227",
-  riskWater: "#6b8cae",
-  ndvi: "#7a9e6a",
-  grid: "oklch(1 0 0 / 8%)",
-  axis: "oklch(0.68 0.012 240)",
+  temp: "#E4B53A",
+  rain: "#2E6F1E",
+  riskHeat: "#E4B53A",
+  riskWater: "#4E8026",
+  ndvi: "#77A83B",
+  grid: "rgb(15 58 31 / 8%)",
+  axis: "#4A6340",
 } as const;
 
 export const chartTooltip = {
   contentStyle: {
-    background: "oklch(0.2 0.012 240)",
-    border: "1px solid oklch(1 0 0 / 10%)",
-    borderRadius: 8,
-    color: "oklch(0.96 0.004 240)",
+    background: "#FFFFFF",
+    border: "1px solid #D8E5D0",
+    borderRadius: 12,
+    color: "#0F3A1F",
     fontSize: 12,
+    boxShadow: "0 8px 24px rgb(15 58 31 / 0.1)",
   },
-  cursor: { stroke: "oklch(1 0 0 / 12%)", strokeOpacity: 1 },
+  cursor: { stroke: "rgb(15 58 31 / 12%)", strokeOpacity: 1 },
 };
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
